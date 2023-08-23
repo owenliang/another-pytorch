@@ -4,7 +4,7 @@ import numpy as np
 class Function:
     def __init__(self,name=None):
         self.name=name
-        self.gen=None  # 第几层算子(inputs+func)
+        self.gen=None  # 赋值为max(inputs.gen)
         self.inputs=None
         self.outputs=None
     
