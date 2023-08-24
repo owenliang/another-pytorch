@@ -7,10 +7,23 @@ class Variable:
         self.func=None  # Function
         self.gen=0      # 赋值为算子gen+1
 
-    def __repr__(self):
-        return 'Variable[gen:{}\tdata:{}\tgrad:{}\tfunc:{}]'.format(self.gen,self.data,self.grad,self.func)
+    def backward(self):
+        self.grad=Variable(np.ones_like(self.data))
+        
+        func_q=[self.func]
+        func_set=set(func_q)
+        while len(func_q)!=0:
+            f=func_q.pop()
+            f.backward()
+            for var in f.inputs:
+                if var.func is None or var.func in func_set:
+                    continue 
+                func_set.add(var.func)
+                func_q.append(var.func)
+            func_q=sorted(func_q,key=lambda f:f.gen,reverse=True)
 
-if __name__=='__main__':
-    import numpy as np
-    var=Variable(2.0)
-    print(var)
+    def zero_grad(self):
+        self.grad=None
+
+    def __repr__(self):
+        return str(self.data)

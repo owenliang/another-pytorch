@@ -2,8 +2,7 @@ from variable import Variable
 import numpy as np 
 
 class Function:
-    def __init__(self,name=None):
-        self.name=name
+    def __init__(self):
         self.gen=None  # 赋值为max(inputs.gen)
         self.inputs=None
         self.outputs=None
@@ -63,19 +62,22 @@ class Add(Function):
 if __name__=='__main__':
     from variable import Variable
 
-    # 正向(x+y)+x
+    # (x+y)*x
+    
+    #------------ 一阶导数验证 
     x=Variable(1)
     y=Variable(2)
-    add1=Add()
-    sum=add1(x,y)
-    add2=Add()
-    final=add2(sum,x)
+    add=Add()
+    sum=add(x,y)
+    mul=Mul()
+    final=mul(sum,x)
     
-    # 反向
-    final.grad=Variable(1)
-    final.func.backward()
-    sum.func.backward()
+    final.backward()
+    print('x_grad:',x.grad,'y_grad:',y.grad)     # 2x+y=4,    x=1
 
-    # 查看结果
-    print(x.grad)
-    print(y.grad)
+    #------------ 二阶导数验证
+    gx=x.grad
+    x.zero_grad()
+    y.zero_grad()
+    gx.backward()
+    print('x_grad2:',x.grad,'y_grad2:',y.grad)  # 2,    1
