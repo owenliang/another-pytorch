@@ -34,8 +34,7 @@ class Function:
                 self.inputs[i].grad=input_grads[i]
             else:
                 self.inputs[i].grad=Add()(self.inputs[i].grad,input_grads[i])  # Variable+Variable
-        # 清理不用的梯度
-        for var in self.outputs:
+        for var in self.outputs:        # 清理显存,兼容高阶求导
            var.grad=None
 
     # 具体实现
@@ -62,22 +61,16 @@ class Add(Function):
 if __name__=='__main__':
     from variable import Variable
 
-    # (x+y)*x
-    
     #------------ 一阶导数验证 
-    x=Variable(1)
-    y=Variable(2)
-    add=Add()
-    sum=add(x,y)
-    mul=Mul()
-    final=mul(sum,x)
-    
-    final.backward()
-    print('x_grad:',x.grad,'y_grad:',y.grad)     # 2x+y=4,    x=1
+    x=Variable(2)
+    mul1=Mul()
+    mul2=Mul()
+    y=mul2(mul1(x,x),x)
+    y.backward()
+    print('x_grad:',x.grad)
 
-    #------------ 二阶导数验证
-    gx=x.grad
+    #------------ 二阶导数验证 
+    x_grad=x.grad
     x.zero_grad()
-    y.zero_grad()
-    gx.backward()
-    print('x_grad2:',x.grad,'y_grad2:',y.grad)  # 2,    1
+    x_grad.backward()
+    print('x_double_grad:',x.grad) # y=x^3 -> y=3*x^2 -> y=6*x

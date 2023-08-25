@@ -20,7 +20,7 @@ class Variable:
                     continue 
                 func_set.add(var.func)
                 func_q.append(var.func)
-            func_q=sorted(func_q,key=lambda f:f.gen,reverse=True)
+            func_q=sorted(func_q,key=lambda f:f.gen)
 
     def zero_grad(self):
         self.grad=None
