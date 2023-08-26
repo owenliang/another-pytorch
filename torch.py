@@ -98,9 +98,7 @@ class Add(Function):
 if __name__=='__main__':
     #------------ 一阶导数验证 
     x=Variable(2)
-    mul1=Mul()
-    mul2=Mul()
-    y=mul2(mul1(x,x),x)
+    y=x*x*x
     y.backward()
     print('x_grad:',x.grad)
 
