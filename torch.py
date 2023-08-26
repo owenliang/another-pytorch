@@ -33,12 +33,30 @@ class Variable:
 
     def __radd__(self,other):
         return Add()(other,self)
+    
+    def __sub__(self,other):
+        return Sub()(self,other)
+    
+    def __rsub__(self,other):
+        return Sub()(other,self)
 
     def __mul__(self,other):
         return Mul()(self,other)
 
     def __rmul__(self,other):
         return Mul()(other,self)
+    
+    def __truediv__(self,other):
+        return Div()(self,other)
+
+    def __rtruediv__(self,other):
+        return Div()(other,self)
+    
+    def __pow__(self,other):
+        return Pow(other)(self)
+    
+    def __neg__(self):
+        return Neg()(self)
 
 class Function:
     def __init__(self):
@@ -65,7 +83,9 @@ class Function:
 
     def backward(self):
         output_grads=[var.grad for var in self.outputs]    # Variable
-        input_grads=self._backward(*output_grads)   # Variable
+        input_grads=self._backward(*output_grads)
+        if not isinstance(input_grads,tuple):
+            input_grads=input_grads,
         for i in range(len(self.inputs)):
             if self.inputs[i].grad is None:
                 self.inputs[i].grad=input_grads[i]
@@ -81,29 +101,121 @@ class Function:
     def _backward(self,*grad):   # Variable
         raise NotImplementedError()
     
-class Mul(Function):
-    def _forward(self,a,b):
-        return a*b
-
-    def _backward(self,grad):
-        return self.inputs[1]*grad,self.inputs[0]*grad
-
+# +
 class Add(Function):
     def _forward(self,a,b):
         return a+b
 
     def _backward(self,grad):
-        return 1*grad,1*grad
-    
-if __name__=='__main__':
-    #------------ 一阶导数验证 
-    x=Variable(2)
-    y=x*x*x
-    y.backward()
-    print('x_grad:',x.grad)
+        return grad*1,grad*1
 
+# -
+class Sub(Function):
+    def _forward(self,a,b):
+        return a-b 
+    
+    def _backward(self,grad):
+        return grad*1,grad*-1
+
+# *
+class Mul(Function):
+    def _forward(self,a,b):
+        return a*b
+
+    def _backward(self,grad):
+        return grad*self.inputs[1],grad*self.inputs[0]    
+
+# /   
+class Div(Function):
+    def _forward(self,a,b):
+        return a/b
+    
+    def _backward(self,grad):
+        return grad*1/self.inputs[1],-1*grad*self.inputs[0]/(self.inputs[1]**2)
+
+# **
+class Pow(Function):
+    def __init__(self,b):
+        self.b=b    # int
+
+    def _forward(self,a):
+        return np.power(a,self.b)
+
+    def _backward(self,grad):
+        return grad*self.b*self.outputs[0]/self.inputs[0]
+
+# -
+class Neg(Function):
+    def _forward(self,x):
+        return -x 
+
+    def _backward(self,grad):
+        return grad*-1
+
+if __name__=='__main__':
+
+    print('加法测试')
+    x=Variable(2)
+    y=Variable(3)
+    z=x+y
+    print('z:',z)
+    z.backward()
+    print('x_grad:',x.grad,'y_grad:',y.grad)
+
+    print('减法测试')
+    x=Variable(6)
+    y=Variable(4)
+    z=x-y
+    print('z:',z)
+    z.backward()
+    print('x_grad:',x.grad,'y_grad:',y.grad)
+
+    print('乘法测试')
+    x=Variable(2)
+    y=Variable(5)
+    z=x*y
+    print('z:',z)
+    z.backward()
+    print('x_grad:',x.grad,'y_grad:',y.grad)
+
+    print('除法测试')
+    x=Variable(8)
+    y=Variable(2)
+    z=x/y
+    print('z:',z)
+    z.backward()
+    print('x_grad:',x.grad,'y_grad:',y.grad)
+
+    print('幂测试')
+    x=Variable(2)
+    z=x**4
+    print('z:',z)
+    #------------ 一阶导数验证 
+    z.backward()
+    print('x_grad:',x.grad)
     #------------ 二阶导数验证 
     x_grad=x.grad
     x.zero_grad()
     x_grad.backward()
-    print('x_double_grad:',x.grad) # y=x^3 -> y=3*x^2 -> y=6*x
+    print('x_double_grad:',x.grad) # y=x^4 -> 4*x^3 -> 12*x^2
+
+    print('取反测试')
+    x=Variable(2)
+    z=-x
+    print('z:',z)
+    #------------ 一阶导数验证 
+    z.backward()
+    print('x_grad:',x.grad)
+
+    print('复杂算式')
+    x=Variable(2)
+    y=x*x*x/2+x**2+x+x-x    # y=x^3 / 2 + x^2 + x -> 3*x^2 / 2 + 2*x + 1 -> 6*x/2 + 2
+    print('y:',y)
+    #------------ 一阶导数验证 
+    y.backward()
+    print('x_grad:',x.grad)
+    #------------ 二阶导数验证 
+    x_grad=x.grad
+    x.zero_grad()
+    x_grad.backward()
+    print('x_double_grad:',x.grad) 
