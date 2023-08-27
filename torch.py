@@ -1,8 +1,10 @@
 import numpy as np 
+from graphviz import Digraph
 
 class Variable:
-    def __init__(self,data):
+    def __init__(self,data,name=None):
         self.data=data if isinstance(data,np.ndarray) else np.array(data) # ndarray
+        self.name=name  # str
         self.grad=None  # Variable
         self.func=None  # Function
         self.gen=0      # Generation
@@ -152,8 +154,35 @@ class Neg(Function):
     def _backward(self,grad):
         return grad*-1
 
-if __name__=='__main__':
+# Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
+def plot_graph(output,path):
+    dot=Digraph()
 
+    def plot_variable(var):
+        dot.node(str(id(var)),var.name if var.name is not None else '',color='gray',style='filled')
+    def plot_function(f):
+        dot.node(str(id(f)),f.__class__.__name__,color='lightblue',style='filled',shape='box') # function self
+        for var in f.inputs: #  input & input to function
+            plot_variable(var)
+            dot.edge(str(id(var)),str(id(f)))
+        for var in f.outputs:   # function to output
+            dot.edge(str(id(f)),str(id(var)))
+
+    plot_variable(output)
+
+    func_q=[output.func]
+    func_set=set(func_q)
+    while len(func_q):
+        f=func_q.pop()
+        plot_function(f)
+        for var in f.inputs:
+            if var.func is None or var.func in func_set:
+                continue
+            func_set.add(var.func)
+            func_q.append(var.func)
+    dot.render(outfile=path,cleanup=True)
+
+if __name__=='__main__':
     print('加法测试')
     x=Variable(2)
     y=Variable(3)
@@ -219,3 +248,10 @@ if __name__=='__main__':
     x.zero_grad()
     x_grad.backward()
     print('x_double_grad:',x.grad) 
+    
+    print('graphviz可视化')
+    x=Variable(3,name='x')
+    y=Variable(2,name='y')
+    z=x+y+x*y
+    z.name='z'
+    plot_graph(z,'model.png')
