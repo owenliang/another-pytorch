@@ -60,6 +60,18 @@ class Variable:
     def __neg__(self):
         return Neg()(self)
 
+    def reshape(self,shape):
+        return Reshape(shape)(self)
+    
+    def transpose(self,axes=None):
+        return Transpose(axes)(self)
+
+    def sum(self,axes=None,keepdims=False):
+        return Sum(axes,keepdims)(self)
+
+    def broadcast(self,shape):
+        return Broadcast(shape)(self)
+
 class Function:
     def __init__(self):
         self.gen=None  # max(inputs' generation)
@@ -153,6 +165,86 @@ class Neg(Function):
 
     def _backward(self,grad):
         return grad*-1
+
+# Matrix Reshape
+class Reshape(Function):
+    def __init__(self,output_shape):
+        self.output_shape=output_shape
+
+    def _forward(self,x):
+        self.x_shape=x.shape
+        return np.reshape(x,self.output_shape)
+
+    def _backward(self,grad):
+        return Reshape(self.x_shape)(grad)
+
+# Matrix Transpose
+class Transpose(Function):
+    def __init__(self,axes):
+        self.axes=axes
+
+    def _forward(self,x):
+        return np.transpose(x,self.axes)
+
+    def _backward(self,grad):
+        return Transpose(self.axes)(grad)
+
+# Matrix Sum
+class Sum(Function):
+    def __init__(self,axes,keepdims):
+        self.axes=axes
+        self.keepdims=keepdims
+    
+    def _forward(self,x):
+        self.x_shape=x.shape
+        return np.sum(x,axis=self.axes,keepdims=self.keepdims)
+
+    def _backward(self,grad):   
+        # Case1: (3,4,2) -> sum(axes:(0,2),keepdims=True) -> (1,4,1)
+        # Case2: (3,4,2) -> sum(axes:(0,2),keepdims=False)-> (4,)
+        grad_shape=list(grad.data.shape)
+        if len(grad_shape)!=len(self.x_shape):  # keepdims=False
+            for idim in self.axes:  # (4,) -> (1,4,) -> (1,4,1)
+                grad_shape.insert(idim,1)
+        
+        grad=grad.reshape(grad_shape)  # Reshape function  ,    (1,4,1)
+        grad=grad.broadcast(self.x_shape)   # Broadcast function    (1,4,1)->(3,4,2)
+        return grad
+
+# Matrix DeBroadcast
+class DeBroadcast(Function):
+    def __init__(self,output_shape):
+        self.output_shape=output_shape
+
+    def _forward(self,x):   # x:(3,4,2) , output_shape: (4,1)
+        self.x_shape=x.shape
+
+        prefix_ndim=len(x.shape)-len(self.output_shape)  # len((3,4,2))-len((4,1))
+        dims=[]
+        for idim in range(len(self.output_shape)):
+            if self.output_shape[idim]!=x.shape[prefix_ndim+idim]:
+                dims.append(prefix_ndim+idim)
+        prefix_dims=list(range(prefix_ndim))
+        output=np.sum(x,axis=tuple(prefix_dims+dims),keepdims=True)
+        return np.squeeze(output,axis=tuple(prefix_dims))
+
+    def _backward(self,grad):   # grad:(4,1), return: (3,4,2)
+        return Broadcast(self.x_shape)(grad)
+
+# Matrix Broadcast
+class Broadcast(Function):
+    def __init__(self,output_shape):
+        self.output_shape=output_shape 
+    
+    def _forward(self,x):   
+        self.x_shape=x.shape
+        # Case1: Simple version,  (1,4,1)   -> (3,4,2)
+        # Case2: Hard version, (4,1)  ->    (3,4,2)
+        return np.broadcast_to(x,self.output_shape)
+
+    def _backward(self,grad):    # Case2: Hard version,   grad: (3,4,2)  -> (4,1)
+        return DeBroadcast(self.x_shape)(grad)
+
 
 # Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
 def plot_graph(output,path):
@@ -255,3 +347,36 @@ if __name__=='__main__':
     z=x+y+x*y
     z.name='z'
     plot_graph(z,'model.png')
+
+    print('reshape测试')
+    x=Variable([1,2,3,4,5,6],name='x')  # shape: (6,)
+    y=x.reshape((3,2))  # shape: (3,2)
+    y.name='y' 
+    print('y:',y)
+    y.backward()
+    print('x_grad:',x.grad) # shape: (6,)
+
+    print('transpose测试')
+    x=Variable([[1,2,3],[4,5,6]],name='x')  # shape: (2,3)
+    y=x.transpose()  # shape: (3,2)
+    z=y.transpose((1,0))    # 颠倒1和0维度
+    y.name='y' 
+    z.name='z'
+    print('y:',y)
+    print('z:',z)
+    z.backward()
+    print('x_grad:',x.grad) # shape: (2,3)
+
+    print('sum测试')
+    x=Variable([[1,2],[3,4]])   # (2,2)
+    y=x.sum(axes=(1),keepdims=True) # (2,1)
+    y.backward()
+    print('z:',y) 
+    print('x_grad:',x.grad) # (2,2)
+
+    print('broadcast测试')
+    x=Variable(np.arange(1,5).reshape((4,1))) # x shape: (4,1) 
+    y=x.broadcast((3,4,2))  # (4,1) -> (3,4,2), 梯度回传累计6倍
+    print('y:',y)
+    y.backward()    
+    print('x_grad:',x.grad) # (4,1)
