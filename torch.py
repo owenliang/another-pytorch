@@ -71,6 +71,14 @@ class Variable:
 
     def broadcast(self,shape):
         return Broadcast(shape)(self)
+    
+    @property
+    def shape(self):
+        return self.data.shape
+
+    @property
+    def dtype(self):
+        return self.data.dtype
 
 class Function:
     def __init__(self):
@@ -121,7 +129,12 @@ class Add(Function):
         return a+b
 
     def _backward(self,grad):
-        return grad*1,grad*1
+        a_grad,b_grad=grad*1,grad*1
+        if self.inputs[0].shape!=grad.shape:
+            a_grad=DeBroadcast(self.inputs[0].shape)(grad)
+        if self.inputs[1].shape!=grad.shape:
+            b_grad=DeBroadcast(self.inputs[1].shape)(grad)
+        return a_grad,b_grad
 
 # -
 class Sub(Function):
@@ -129,7 +142,12 @@ class Sub(Function):
         return a-b 
     
     def _backward(self,grad):
-        return grad*1,grad*-1
+        a_grad,b_grad=grad*1,grad*-1
+        if self.inputs[0].shape!=grad.shape:
+            a_grad=DeBroadcast(self.inputs[0].shape)(grad)
+        if self.inputs[1].shape!=grad.shape:
+            b_grad=DeBroadcast(self.inputs[1].shape)(grad)
+        return a_grad,b_grad
 
 # *
 class Mul(Function):
@@ -137,7 +155,13 @@ class Mul(Function):
         return a*b
 
     def _backward(self,grad):
-        return grad*self.inputs[1],grad*self.inputs[0]    
+        a_grad=self.inputs[1]*grad 
+        b_grad=self.inputs[0]*grad
+        if self.inputs[0].shape!=grad.shape:
+            a_grad=DeBroadcast(self.inputs[0].shape)(a_grad)
+        if self.inputs[1].shape!=grad.shape:
+            b_grad=DeBroadcast(self.inputs[1].shape)(b_grad)
+        return a_grad,b_grad
 
 # /   
 class Div(Function):
@@ -145,7 +169,13 @@ class Div(Function):
         return a/b
     
     def _backward(self,grad):
-        return grad*1/self.inputs[1],-1*grad*self.inputs[0]/(self.inputs[1]**2)
+        a_grad=grad*1/self.inputs[1]
+        b_grad=-1*grad*self.inputs[0]/(self.inputs[1]**2)
+        if self.inputs[0].shape!=grad.shape:
+            a_grad=DeBroadcast(self.inputs[0].shape)(a_grad)
+        if self.inputs[1].shape!=grad.shape:
+            b_grad=DeBroadcast(self.inputs[1].shape)(b_grad)
+        return a_grad,b_grad
 
 # **
 class Pow(Function):
@@ -275,7 +305,7 @@ def plot_graph(output,path):
     dot.render(outfile=path,cleanup=True)
 
 if __name__=='__main__':
-    print('加法测试')
+    print('Add测试')
     x=Variable(2)
     y=Variable(3)
     z=x+y
@@ -283,7 +313,7 @@ if __name__=='__main__':
     z.backward()
     print('x_grad:',x.grad,'y_grad:',y.grad)
 
-    print('减法测试')
+    print('Sub测试')
     x=Variable(6)
     y=Variable(4)
     z=x-y
@@ -291,7 +321,7 @@ if __name__=='__main__':
     z.backward()
     print('x_grad:',x.grad,'y_grad:',y.grad)
 
-    print('乘法测试')
+    print('Mul测试')
     x=Variable(2)
     y=Variable(5)
     z=x*y
@@ -299,7 +329,7 @@ if __name__=='__main__':
     z.backward()
     print('x_grad:',x.grad,'y_grad:',y.grad)
 
-    print('除法测试')
+    print('Div测试')
     x=Variable(8)
     y=Variable(2)
     z=x/y
@@ -307,7 +337,7 @@ if __name__=='__main__':
     z.backward()
     print('x_grad:',x.grad,'y_grad:',y.grad)
 
-    print('幂测试')
+    print('Pow测试')
     x=Variable(2)
     z=x**4
     print('z:',z)
@@ -320,7 +350,7 @@ if __name__=='__main__':
     x_grad.backward()
     print('x_double_grad:',x.grad) # y=x^4 -> 4*x^3 -> 12*x^2
 
-    print('取反测试')
+    print('Neg测试')
     x=Variable(2)
     z=-x
     print('z:',z)
@@ -380,3 +410,35 @@ if __name__=='__main__':
     print('y:',y)
     y.backward()    
     print('x_grad:',x.grad) # (4,1)
+
+    print('Add广播兼容性')
+    x=Variable([1,2,])
+    y=Variable(5)
+    z=x+y
+    print(z)
+    z.backward()
+    print('x_grad:',x.grad,'y_grad:',y.grad)
+
+    print('Sub广播兼容性')
+    x=Variable([1,2,])
+    y=Variable(5)
+    z=x-y
+    print(z)
+    z.backward()
+    print('x_grad:',x.grad,'y_grad:',y.grad)
+
+    print('Mul广播兼容性')
+    x=Variable([1,2,])
+    y=Variable(5)
+    z=x*y
+    print(z)
+    z.backward()
+    print('x_grad:',x.grad,'y_grad:',y.grad)
+
+    print('Div广播兼容性')
+    x=Variable([4,8,])
+    y=Variable(4)
+    z=x/y
+    print(z)
+    z.backward()
+    print('x_grad:',x.grad,'y_grad:',y.grad) 
