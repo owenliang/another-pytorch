@@ -59,6 +59,9 @@ class Variable:
     
     def __neg__(self):
         return Neg()(self)
+    
+    def __matmul__(self,other): # @
+        return MatMul()(self,other)
 
     def reshape(self,shape):
         return Reshape(shape)(self)
@@ -71,7 +74,11 @@ class Variable:
 
     def broadcast(self,shape):
         return Broadcast(shape)(self)
-    
+
+    @property
+    def T(self):
+        return Transpose(None)(self)
+
     @property
     def shape(self):
         return self.data.shape
@@ -234,7 +241,8 @@ class Sum(Function):
         # Case2: (3,4,2) -> sum(axes:(0,2),keepdims=False)-> (4,)
         grad_shape=list(grad.data.shape)
         if len(grad_shape)!=len(self.x_shape):  # keepdims=False
-            for idim in self.axes:  # (4,) -> (1,4,) -> (1,4,1)
+            axes=list(range(len(self.x_shape))) if self.axes is None else self.axes
+            for idim in axes:  # (4,) -> (1,4,) -> (1,4,1)
                 grad_shape.insert(idim,1)
         
         grad=grad.reshape(grad_shape)  # Reshape function  ,    (1,4,1)
@@ -275,6 +283,15 @@ class Broadcast(Function):
     def _backward(self,grad):    # Case2: Hard version,   grad: (3,4,2)  -> (4,1)
         return DeBroadcast(self.x_shape)(grad)
 
+# Matrix Multiply
+class MatMul(Function):
+    def _forward(self,a,b): # (A,B)X(B,C)->(A,C)
+        return np.dot(a,b)
+
+    def _backward(self,grad):
+        grad_a=MatMul()(grad,self.inputs[1].transpose())    # (A,C)X(B,C).T
+        grad_b=MatMul()(self.inputs[0].transpose(),grad)   # (A,B).TX(A,C)->(B,C)
+        return grad_a,grad_b
 
 # Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
 def plot_graph(output,path):
@@ -439,6 +456,39 @@ if __name__=='__main__':
     x=Variable([4,8,])
     y=Variable(4)
     z=x/y
-    print(z)
+    print('z:',z)
     z.backward()
     print('x_grad:',x.grad,'y_grad:',y.grad) 
+
+    print('MatMul测试')
+    x=Variable(np.random.rand(3,2))
+    y=Variable(np.random.rand(2,5))
+    z=x@y
+    print('z:',z.shape)
+    z.backward()
+    print('x_grad:',x.grad.shape,'y_grad:',y.grad.shape) 
+
+    print('线性回归')
+    # 准备样本
+    np.random.seed(0)
+    train_x=np.random.rand(100,1)   #   100个样本x
+    train_y=2*train_x+5+np.random.rand(100,1)   # 100个样本y(随机偏离正确y)
+    # 定义线性模型
+    w=Variable(np.zeros((1,1)))
+    b=Variable(np.zeros((1,)))
+    lr=0.1
+    # 训练
+    for i in range(100):
+        # forward
+        x=Variable(train_x)
+        y=x*w+b
+        # loss
+        loss=((y-train_y)**2).sum()/100
+        w.zero_grad()
+        b.zero_grad()
+        # backward
+        loss.backward()
+        # optimize
+        w.data-=lr*w.grad.data
+        b.data-=lr*b.grad.data
+        print('loss:',loss,'w:',w,'b:',b)
