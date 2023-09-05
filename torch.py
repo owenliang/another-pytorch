@@ -481,7 +481,7 @@ if __name__=='__main__':
     for i in range(100):
         # forward
         x=Variable(train_x)
-        y=x*w+b
+        y=x@w+b
         # loss
         loss=((y-train_y)**2).sum()/100
         w.zero_grad()
