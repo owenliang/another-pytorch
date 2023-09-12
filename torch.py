@@ -311,13 +311,6 @@ class Exp(Function):
     def _backward(self,grad):
         return self.outputs[0]*grad
 
-class Abs(Function):
-    def _forward(self,x):
-        return np.abs(x)
-
-    def _backward(self,grad):
-        return self.inputs[0]/self.outputs[0]*grad   # 1 or -1
-
 # Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
 def plot_graph(output,path):
     dot=Digraph()
@@ -517,10 +510,3 @@ if __name__=='__main__':
         w.data-=lr*w.grad.data
         b.data-=lr*b.grad.data
         print('loss:',loss,'w:',w,'b:',b)
-
-    print('abs测试')
-    x=Variable([1,-2])
-    y=x.abs()
-    y.backward()
-    print('y:',y)
-    print('x grad:',x.grad)
