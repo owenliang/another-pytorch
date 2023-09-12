@@ -75,6 +75,9 @@ class Variable:
     def broadcast(self,shape):
         return Broadcast(shape)(self)
 
+    def abs(self):
+        return Abs()(self)
+
     @property
     def T(self):
         return Transpose(None)(self)
@@ -87,6 +90,13 @@ class Variable:
     def dtype(self):
         return self.data.dtype
 
+# for Layer trainable variable
+class Parameter(Variable):
+    pass 
+
+def to_variable(data):
+    return data if isinstance(data,Variable) else Variable(data)
+
 class Function:
     def __init__(self):
         self.gen=None  # max(inputs' generation)
@@ -94,7 +104,7 @@ class Function:
         self.outputs=None
     
     def forward(self,*inputs): # Variable
-        inputs=[var_or_data if isinstance(var_or_data,Variable) else Variable(var_or_data) for var_or_data in inputs] # Variable
+        inputs=[to_variable(var_or_data) for var_or_data in inputs] # Variable
         outputs=self._forward(*[var.data for var in inputs])       # ndarray
         if not isinstance(outputs,tuple):
             outputs=outputs,
@@ -292,6 +302,21 @@ class MatMul(Function):
         grad_a=MatMul()(grad,self.inputs[1].transpose())    # (A,C)X(B,C).T
         grad_b=MatMul()(self.inputs[0].transpose(),grad)   # (A,B).TX(A,C)->(B,C)
         return grad_a,grad_b
+
+# e^x
+class Exp(Function):
+    def _forward(self,x):
+        return np.exp(x)
+    
+    def _backward(self,grad):
+        return self.outputs[0]*grad
+
+class Abs(Function):
+    def _forward(self,x):
+        return np.abs(x)
+
+    def _backward(self,grad):
+        return self.inputs[0]/self.outputs[0]*grad   # 1 or -1
 
 # Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
 def plot_graph(output,path):
@@ -492,3 +517,10 @@ if __name__=='__main__':
         w.data-=lr*w.grad.data
         b.data-=lr*b.grad.data
         print('loss:',loss,'w:',w,'b:',b)
+
+    print('abs测试')
+    x=Variable([1,-2])
+    y=x.abs()
+    y.backward()
+    print('y:',y)
+    print('x grad:',x.grad)
