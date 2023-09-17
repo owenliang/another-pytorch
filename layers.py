@@ -88,6 +88,8 @@ if __name__=='__main__':
             y=self.sigmoid1(y)
             return self.linear2(y)
     model=MLP()
+    from optimizers import SGD 
+    optimizer=SGD(model.params(),lr=0.1)
     train_x=np.random.randint(1,20,(1000,1))   # x: (1000,1)
     train_y=train_x*5+10
     for iter in range(10000):
@@ -99,7 +101,6 @@ if __name__=='__main__':
         model.zero_grads()
         loss.backward()
         # optimize
-        for param in model.params():
-            param.data-=0.1*param.grad.data
+        optimizer.step()
         if iter%500==0:
             print('iter:',iter,'loss:',loss)

@@ -75,9 +75,6 @@ class Variable:
     def broadcast(self,shape):
         return Broadcast(shape)(self)
 
-    def abs(self):
-        return Abs()(self)
-
     @property
     def T(self):
         return Transpose(None)(self)
@@ -501,7 +498,7 @@ if __name__=='__main__':
         x=Variable(train_x)
         y=x@w+b
         # loss
-        loss=((y-train_y)**2).sum()/100
+        loss=((y-train_y)**2).sum()/train_x.shape[0]
         w.zero_grad()
         b.zero_grad()
         # backward
