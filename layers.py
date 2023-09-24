@@ -42,6 +42,17 @@ class Sigmoid(Layer):
     def _forward(self,x):
         return 1/(1+Exp()(-x))
 
+class Softmax1D(Layer):
+    def _forward(self,x):
+        x_exp=Exp()(x)
+        return x_exp/x_exp.sum(axes=-1,keepdims=True)
+
+class SoftmaxCrossEntropy1D(Layer):    
+    def _forward(self,x,t):
+        probs=Softmax1D()(x)
+        log_probs=Log()(Clip(1e-15,1.0)(probs))  # for ln(x), x can not be 0
+        return -log_probs[np.arange(0,x.shape[0]),t.data].sum()/x.shape[0]  # TODO: log_probs[...,t.data]结果就不对,必须arange指定行号,原因需要再看下
+
 if __name__=='__main__':
     print('Linear测试')
     linear=Linear(5,3)
@@ -74,6 +85,19 @@ if __name__=='__main__':
     y.backward()
     print('y:',y)
     print('x grad:',x.grad.shape)
+
+    print('Softmax1D()测试')
+    softmax=Softmax1D()
+    x=Variable([[1,1,2],[4,1,5]])
+    probs=softmax(x)
+    print('softmax:',probs)
+
+    print('SoftmaxCrossEntropy1D()测试')
+    crossentropy_loss=SoftmaxCrossEntropy1D()
+    x=Variable([[0,0,1],[1,0,0]])
+    t=Variable([2,0])
+    loss=crossentropy_loss(x,t)
+    print('loss:',loss)
 
     print('MLP回归测试')
     class MLP(Layer):

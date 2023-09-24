@@ -336,6 +336,27 @@ class SliceGrad(Function):
     def _backward(self,grad):
         return Slice(self.slice)(grad)
 
+# Log
+class Log(Function):
+    def _forward(self,x):
+        return np.log(x)
+    
+    def _backward(self,grad):
+        return grad/self.inputs[0]
+
+# Clip(data range limit)
+class Clip(Function):
+    def __init__(self,x_min,x_max):
+        self.x_min=x_min
+        self.x_max=x_max 
+
+    def _forward(self,x):
+        return np.clip(x,self.x_min,self.x_max)
+    
+    def _backward(self,grad):
+        mask=(self.inputs[0].data>=self.x_min)*(self.inputs[0].data<=self.x_max)
+        return grad*mask.astype(np.uint8)
+
 # Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
 def plot_graph(output,path):
     dot=Digraph()
@@ -523,6 +544,13 @@ if __name__=='__main__':
     x_grad.backward()
     print('x_double_grad:',x.grad)
     # plot_graph(x.grad,'slice.png')
+
+    print('Clip测试')
+    x=Variable([1,3,5,7,9])
+    y=Clip(3,5)(x)
+    print('y:',y)
+    y.backward()
+    print('x_grad:',x.grad)
 
     print('线性回归')
     # 准备样本
