@@ -62,6 +62,9 @@ class Variable:
     
     def __matmul__(self,other): # @
         return MatMul()(self,other)
+    
+    def __getitem__(self,slice):
+        return Slice(slice)(self)
 
     def reshape(self,shape):
         return Reshape(shape)(self)
@@ -308,6 +311,31 @@ class Exp(Function):
     def _backward(self,grad):
         return self.outputs[0]*grad
 
+# Slice like a[2:],a[1],a[3:,1:3],
+class Slice(Function):
+    def __init__(self,slice):
+        self.slice=slice
+
+    def _forward(self,x):
+        self.x_shape=x.shape
+        return x[self.slice]
+    
+    def _backward(self,grad):
+        return SliceGrad(self.x_shape,self.slice)(grad)
+    
+class SliceGrad(Function):
+    def __init__(self,x_shape,slice):
+        self.x_shape=x_shape
+        self.slice=slice
+    
+    def _forward(self,grad):
+        grad_x=np.zeros(self.x_shape)
+        np.add.at(grad_x,self.slice,grad)
+        return grad_x
+
+    def _backward(self,grad):
+        return Slice(self.slice)(grad)
+
 # Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
 def plot_graph(output,path):
     dot=Digraph()
@@ -482,6 +510,19 @@ if __name__=='__main__':
     print('z:',z.shape)
     z.backward()
     print('x_grad:',x.grad.shape,'y_grad:',y.grad.shape) 
+
+    print('Slice测试')
+    x=Variable([[1,2,3],[4,5,6]])
+    x2=x**2
+    y=x2[1,1]
+    print('y:',y)
+    y.backward()
+    print('x_grad:',x.grad)
+    x_grad=x.grad
+    x.zero_grad()
+    x_grad.backward()
+    print('x_double_grad:',x.grad)
+    # plot_graph(x.grad,'slice.png')
 
     print('线性回归')
     # 准备样本
