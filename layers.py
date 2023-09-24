@@ -51,7 +51,8 @@ class SoftmaxCrossEntropy1D(Layer):
     def _forward(self,x,t):
         probs=Softmax1D()(x)
         log_probs=Log()(Clip(1e-15,1.0)(probs))  # for ln(x), x can not be 0
-        return -log_probs[np.arange(0,x.shape[0]),t.data].sum()/x.shape[0]  # TODO: log_probs[...,t.data]结果就不对,必须arange指定行号,原因需要再看下
+        onehots=np.eye(probs.shape[-1])[t.data]
+        return -(log_probs*onehots).sum()/x.shape[0]
 
 if __name__=='__main__':
     print('Linear测试')
