@@ -101,7 +101,7 @@ if __name__=='__main__':
     print('loss:',loss)
 
     print('MLP回归测试')
-    class MLP(Layer):
+    class MLPRegression(Layer):
         def __init__(self):
             super().__init__()
             self.linear1=Linear(1,10)
@@ -112,7 +112,7 @@ if __name__=='__main__':
             y=self.linear1(x)
             y=self.sigmoid1(y)
             return self.linear2(y)
-    model=MLP()
+    model=MLPRegression()
     from optimizers import SGD 
     optimizer=SGD(model.params(),lr=0.1)
     train_x=np.random.randint(1,20,(1000,1))   # x: (1000,1)
@@ -129,3 +129,63 @@ if __name__=='__main__':
         optimizer.step()
         if iter%500==0:
             print('iter:',iter,'loss:',loss)
+
+    print('MLP分类测试')
+    class MLPClassification(Layer):
+        def __init__(self):
+            super().__init__()
+            self.linear1=Linear(2,10)
+            self.sigmoid1=Sigmoid()
+            self.linear2=Linear(10,3)
+        
+        def _forward(self,x): 
+            y=self.linear1(x)
+            y=self.sigmoid1(y)
+            return self.linear2(y)
+    
+    batch_size=30
+    epoch=500
+
+    model=MLPClassification() 
+    from optimizers import MomentumSGB 
+    optimizer=MomentumSGB(model.params(),lr=0.1)
+
+    from datasets import get_spiral
+    import math 
+    train_x,train_y=get_spiral(train=True)  
+    loss_history=[]
+    for i in range(epoch):
+        idx=np.random.permutation(len(train_y))
+        iters=math.ceil(len(train_y)/batch_size)
+        epoch_loss=0
+        for j in range(iters):
+            batch_idx=idx[batch_size*j:batch_size*(j+1)]
+            x=train_x[batch_idx]
+            y=train_y[batch_idx]
+            output=model(x)
+            loss=SoftmaxCrossEntropy1D()(output,y)
+            model.zero_grads()
+            loss.backward()
+            optimizer.step()
+            epoch_loss+=float(loss.data)
+        loss_history.append(epoch_loss/iters)
+        print('epoch:',i,'avg_loss:',loss_history[-1])
+    # 绘制Loss曲线
+    import matplotlib.pyplot as plt 
+    plt.plot(np.arange(epoch),loss_history)
+    plt.show()
+    # model决策边界图
+    x0_min,x0_max=math.floor(train_x[:,0].min()),math.ceil(train_x[:,0].max())
+    x1_min,x1_max=math.floor(train_x[:,1].min()),math.ceil(train_x[:,1].max())
+    X,Y=np.meshgrid(np.linspace(x0_min,x0_max,1000),np.linspace(x1_min,x1_max,1000))
+    points=np.concatenate((X[...,np.newaxis],Y[...,np.newaxis]),axis=2)
+    points=points.reshape((1000*1000,2))
+    pred_y=model(points)
+    pred_y=np.argmax(pred_y.data,axis=-1)
+    pred_y=pred_y.reshape((1000,1000,))
+    plt.contourf(X,Y,pred_y)    
+    # 实际样本分布图
+    for c in range(3):  # 3个分类ID的样本分布
+        mask=train_y==c
+        plt.scatter(train_x[mask,0],train_x[mask,1],) 
+    plt.show()
