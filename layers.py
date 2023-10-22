@@ -150,18 +150,18 @@ if __name__=='__main__':
     from optimizers import MomentumSGB 
     optimizer=MomentumSGB(model.params(),lr=0.1)
 
-    from datasets import get_spiral
+    from dataset import get_spiral,SpiralDataset
+    from dataloader import DataLoader
     import math 
     train_x,train_y=get_spiral(train=True)  
+    dataset=SpiralDataset()
+    dataloader=DataLoader(dataset,batch_size=30)
     loss_history=[]
     for i in range(epoch):
         idx=np.random.permutation(len(train_y))
         iters=math.ceil(len(train_y)/batch_size)
         epoch_loss=0
-        for j in range(iters):
-            batch_idx=idx[batch_size*j:batch_size*(j+1)]
-            x=train_x[batch_idx]
-            y=train_y[batch_idx]
+        for x,y in dataloader:
             output=model(x)
             loss=SoftmaxCrossEntropy1D()(output,y)
             model.zero_grads()
