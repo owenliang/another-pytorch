@@ -357,6 +357,15 @@ class Clip(Function):
         mask=(self.inputs[0].data>=self.x_min)*(self.inputs[0].data<=self.x_max)
         return grad*mask.astype(np.uint8)
 
+# Relu activation
+class Relu(Function):
+    def _forward(self,x):
+        return np.maximum(x,np.zeros(x.shape))
+    
+    def _backward(self,grad):
+        x_grad=grad*(self.inputs[0].data>0)
+        return x_grad
+
 # Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
 def plot_graph(output,path):
     dot=Digraph()

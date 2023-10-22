@@ -1,5 +1,7 @@
 import numpy as np 
 from layers import *
+from utils import get_file
+import gzip
 
 class Dataset:
     def __init__(self,transformer=None,target_transformer=None):
@@ -25,13 +27,12 @@ class Dataset:
     def _len(self):
         raise NotImplementedError()
 
-# 漩涡数据集
 def get_spiral(train=True):
     seed=1984 if train else 2020
     np.random.seed(seed=seed)
 
     num_data,num_class,input_dim=100,3,2
-    data_size=num_class*num_data    # 3个分类,每个分类100个样本
+    data_size=num_class*num_data 
     x=np.zeros((data_size,input_dim),dtype=np.float32)
     t=np.zeros(data_size,dtype=np.int32)
 
@@ -41,7 +42,7 @@ def get_spiral(train=True):
             radius=1.0*rate
             theta=j*4.0+4.0*rate+np.random.randn()*0.2
             ix=num_data*j+i
-            x[ix]=np.array([radius*np.sin(theta),radius*np.cos(theta)]).flatten() # 2个特征分别按sin,cos分布
+            x[ix]=np.array([radius*np.sin(theta),radius*np.cos(theta)]).flatten() 
             t[ix]=j
     # Shuffle
     indices=np.random.permutation(num_data * num_class)
@@ -60,6 +61,44 @@ class SpiralDataset(Dataset):
     def _getitem(self,index):
         return self.x[index],self.t[index]
 
+class MNISTDataset(Dataset):
+    def __init__(self,train=True,transformer=None,target_transformer=None):
+        super().__init__(transformer,target_transformer)
+
+        url='http://yann.lecun.com/exdb/mnist/'
+        train_files={
+            'data': 'train-images-idx3-ubyte.gz',
+            'label': 'train-labels-idx1-ubyte.gz'
+        }
+        test_files={
+            'data': 't10k-images-idx3-ubyte.gz',
+            'label': 't10k-labels-idx1-ubyte.gz'
+        }
+    
+        files=train_files if train else test_files
+        data_path=get_file(url+files['data'])
+        label_path=get_file(url+files['label'])
+
+        self.data=self._load_data(data_path)
+        self.label=self._load_label(label_path)
+    
+    def _load_data(self, filepath):
+        with gzip.open(filepath, 'rb') as f:
+            data=np.frombuffer(f.read(),np.uint8,offset=16)
+        data=data.reshape(-1, 1, 28, 28)
+        return data
+    
+    def _load_label(self, filepath):
+        with gzip.open(filepath, 'rb') as f:
+            labels=np.frombuffer(f.read(),np.uint8,offset=8)
+        return labels
+    
+    def _len(self):
+        return len(self.data)
+
+    def _getitem(self,index):
+        return self.data[index],self.label[index]
+
 if __name__=='__main__':
     def transformer(x):
         print('transformer x:',x)
@@ -71,3 +110,10 @@ if __name__=='__main__':
     print('SpiralDataset size:',len(spiral_dataset))
     for i in np.random.permutation(len(spiral_dataset))[:5]:
         print('spiral_dataset[{}] x:{} t:{}'.format(i,spiral_dataset[i][0],spiral_dataset[i][1]))
+
+    print('MNISTDataset')
+    import matplotlib.pyplot as plt
+    mnist_dataset=MNISTDataset()
+    x,t=mnist_dataset[0]
+    plt.imshow(x.reshape(28,28))
+    plt.show()

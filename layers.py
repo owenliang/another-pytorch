@@ -189,3 +189,46 @@ if __name__=='__main__':
         mask=train_y==c
         plt.scatter(train_x[mask,0],train_x[mask,1],) 
     plt.show()
+
+    print('MNIST分类测试')
+    class MNIST_MLP(Layer):
+        def __init__(self):
+            super().__init__()
+            self.linear1=Linear(28*28,1000)
+            self.relu1=Relu()
+            self.linear2=Linear(1000,10)
+        
+        def _forward(self,x): 
+            y=self.linear1(x)
+            y=self.relu1(y)
+            return self.linear2(y)
+        
+    def img_transformer(x):
+        x=x.flatten()
+        x=x/256.0
+        return x 
+    
+    def accuracy(output,t):
+        pred_t=np.argmax(output.data,axis=-1)
+        return (pred_t==t).sum()/len(t)
+
+    from dataset import MNISTDataset
+    train_dataset=MNISTDataset(train=True,transformer=img_transformer)
+    test_dataset=MNISTDataset(train=False,transformer=img_transformer)
+    
+    epoch=5
+    batch_size=100
+    model=MNIST_MLP()
+    optimizer=MomentumSGB(model.params(),lr=0.1)
+    loss_fn=SoftmaxCrossEntropy1D()
+    
+    train_dataloader=DataLoader(train_dataset,batch_size)
+    test_dataloader=DataLoader(test_dataset,batch_size)
+    for e in range(epoch):
+        for x,t in train_dataloader:
+            output=model(x)
+            loss=loss_fn(output,t)
+            model.zero_grads()
+            loss.backward()
+            optimizer.step()
+            print('loss:',loss,'acc:',accuracy(output,t))
