@@ -4,9 +4,10 @@ import numpy as np
 class Layer:
     def __init__(self):
         self.param_names=set()
+        self.cuda=False
 
     def __call__(self,*inputs):
-        inputs=[to_variable(var_or_data) for var_or_data in inputs]
+        inputs=[to_variable(var_or_data,self.cuda) for var_or_data in inputs]
         return self._forward(*inputs)
     
     def __setattr__(self,name,value):
@@ -25,6 +26,18 @@ class Layer:
     def zero_grads(self):
         for param in self.params():
             param.zero_grad()
+
+    def to_cuda(self):
+        self.cuda=True
+        for p in self.params():
+            p.to_cuda()
+        return self 
+    
+    def to_cpu(self):
+        self.cuda=False
+        for p in self.params():
+            p.to_cpu()
+        return self 
 
     def _forward(self,*inputs):
         raise NotImplementedError()
@@ -51,7 +64,7 @@ class SoftmaxCrossEntropy1D(Layer):
     def _forward(self,x,t):
         probs=Softmax1D()(x)
         log_probs=Log()(Clip(1e-15,1.0)(probs))  # for ln(x), x can not be 0
-        onehots=np.eye(probs.shape[-1])[t.data]
+        onehots=np.eye(probs.shape[-1])[cp.asnumpy(t.data)]
         return -(log_probs*onehots).sum()/x.shape[0]
 
 if __name__=='__main__':
@@ -158,7 +171,6 @@ if __name__=='__main__':
     dataloader=DataLoader(dataset,batch_size=30)
     loss_history=[]
     for i in range(epoch):
-        idx=np.random.permutation(len(train_y))
         iters=math.ceil(len(train_y)/batch_size)
         epoch_loss=0
         for x,y in dataloader:
@@ -190,7 +202,7 @@ if __name__=='__main__':
         plt.scatter(train_x[mask,0],train_x[mask,1],) 
     plt.show()
 
-    print('MNIST分类测试')
+    # print('MNIST分类测试')
     class MNIST_MLP(Layer):
         def __init__(self):
             super().__init__()
@@ -209,8 +221,9 @@ if __name__=='__main__':
         return x 
     
     def accuracy(output,t):
-        pred_t=np.argmax(output.data,axis=-1)
-        return (pred_t==t).sum()/len(t)
+        xp=cp.get_array_module(output.data)
+        pred_t=xp.argmax(output.data,axis=-1)
+        return (pred_t==t.data).sum()/t.shape[0]
 
     from dataset import MNISTDataset
     train_dataset=MNISTDataset(train=True,transformer=img_transformer)
@@ -232,3 +245,31 @@ if __name__=='__main__':
             loss.backward()
             optimizer.step()
             print('loss:',loss,'acc:',accuracy(output,t))
+
+    print('[CUDA]MNIST分类测试')
+    try:
+        from dataset import MNISTDataset
+        train_dataset=MNISTDataset(train=True,transformer=img_transformer)
+        test_dataset=MNISTDataset(train=False,transformer=img_transformer)
+        
+        epoch=5
+        batch_size=100
+        model=MNIST_MLP().to_cuda()
+        optimizer=MomentumSGB(model.params(),lr=0.1)
+        loss_fn=SoftmaxCrossEntropy1D().to_cuda()
+        
+        train_dataloader=DataLoader(train_dataset,batch_size)
+        test_dataloader=DataLoader(test_dataset,batch_size)
+        for e in range(epoch):
+            for x,t in train_dataloader:
+                x=x.to_cuda()
+                t=t.to_cuda() 
+                output=model(x)
+
+                loss=loss_fn(output,t)
+                model.zero_grads()
+                loss.backward()
+                optimizer.step()
+                print('loss:',loss,'acc:',accuracy(output,t))
+    except Exception as e:
+        print('没有NVIDIA显卡,',e)

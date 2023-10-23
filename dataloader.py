@@ -1,5 +1,6 @@
 import math 
 import numpy as np 
+import cupy as cp
 from torch import Variable
 from dataset import SpiralDataset
 
@@ -30,6 +31,9 @@ class DataLoader:
             x.append(self.dataset[i][0])
             t.append(self.dataset[i][1])
         self.batch_iter+=1
+        
+        x=Variable(x)
+        t=Variable(t)
         return x,t
     
 if __name__=='__main__':
