@@ -220,10 +220,11 @@ if __name__=='__main__':
         x=x/256.0
         return x 
     
+    # evaluation
     def accuracy(output,t):
-        xp=cp.get_array_module(output.data)
-        pred_t=xp.argmax(output.data,axis=-1)
-        return (pred_t==t.data).sum()/t.shape[0]
+        pred_t=output.data.argmax(axis=-1)
+        acc=(pred_t==t.data).sum()/t.shape[0]
+        return Variable(acc)
 
     from dataset import MNISTDataset
     train_dataset=MNISTDataset(train=True,transformer=img_transformer)
