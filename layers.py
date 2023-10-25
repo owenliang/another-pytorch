@@ -23,6 +23,13 @@ class Layer:
             elif isinstance(value,Layer):
                 yield from value.params()
 
+    def sublayers(self):
+        for name in self.param_names:
+            value=getattr(self,name)
+            if isinstance(value,Layer):
+                yield value
+                yield from value.sublayers()
+
     def zero_grads(self):
         for param in self.params():
             param.zero_grad()
@@ -31,12 +38,16 @@ class Layer:
         self.cuda=True
         for p in self.params():
             p.to_cuda()
-        return self 
+        for l in self.sublayers():
+            l.cuda=True
+        return self
     
     def to_cpu(self):
         self.cuda=False
         for p in self.params():
             p.to_cpu()
+        for l in self.sublayers():
+            l.cuda=False
         return self 
 
     def _forward(self,*inputs):
@@ -90,6 +101,10 @@ if __name__=='__main__':
     parent_linear=ParentLayer()
     for param in parent_linear.params():
         print('param:',param.name,param.data.shape)
+
+    print('Layer sublayers()测试')
+    for layer in parent_linear.sublayers():
+        print('sublayer:',layer)
 
     print('Sigmoid()测试')
     sigmoid=Sigmoid()
