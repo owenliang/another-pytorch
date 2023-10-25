@@ -1,10 +1,15 @@
 import numpy as np 
-import cupy as cp
 from graphviz import Digraph
+try:
+    import cupy as cp
+except:
+    HAS_CUDA=False
+else:
+    HAS_CUDA=True
 
 class Variable:
     def __init__(self,data,name=None):
-        if cp.get_array_module(data)==cp:
+        if get_array_module(data)!=np:
             self.cuda=True 
             self.data=cp.asarray(data)  # asarray won't copy ndarray if data is already ndarray
         else:
@@ -122,6 +127,11 @@ def to_variable(data,to_cuda):
     if to_cuda:
         var.to_cuda()
     return var
+
+def get_array_module(arr):
+    if not HAS_CUDA:
+        return np
+    return cp.get_array_module(arr)
 
 class Function:
     def __init__(self):
@@ -241,7 +251,7 @@ class Pow(Function):
         self.b=b    # int
 
     def _forward(self,a):
-        xp=cp.get_array_module(a)   # CUDA compatibility
+        xp=get_array_module(a)   # CUDA compatibility
         return xp.power(a,self.b)
 
     def _backward(self,grad):
@@ -261,7 +271,7 @@ class Reshape(Function):
         self.output_shape=output_shape
 
     def _forward(self,x):
-        xp=cp.get_array_module(x)   # CUDA compatibility
+        xp=get_array_module(x)   # CUDA compatibility
         self.x_shape=x.shape
         return xp.reshape(x,self.output_shape)
 
@@ -274,7 +284,7 @@ class Transpose(Function):
         self.axes=axes
 
     def _forward(self,x):
-        xp=cp.get_array_module(x)   # CUDA compatibility
+        xp=get_array_module(x)   # CUDA compatibility
         return xp.transpose(x,self.axes)
 
     def _backward(self,grad):
@@ -287,7 +297,7 @@ class Sum(Function):
         self.keepdims=keepdims
     
     def _forward(self,x):
-        xp=cp.get_array_module(x)   # CUDA compatibility
+        xp=get_array_module(x)   # CUDA compatibility
         self.x_shape=x.shape
         return xp.sum(x,axis=self.axes,keepdims=self.keepdims)
 
@@ -310,7 +320,7 @@ class DeBroadcast(Function):
         self.output_shape=output_shape
 
     def _forward(self,x):   # x:(3,4,2) , output_shape: (4,1)
-        xp=cp.get_array_module(x)   # CUDA compatibility
+        xp=get_array_module(x)   # CUDA compatibility
 
         self.x_shape=x.shape
         prefix_ndim=len(x.shape)-len(self.output_shape)  # len((3,4,2))-len((4,1))
@@ -331,7 +341,7 @@ class Broadcast(Function):
         self.output_shape=output_shape 
     
     def _forward(self,x):   
-        xp=cp.get_array_module(x)   # CUDA compatibility
+        xp=get_array_module(x)   # CUDA compatibility
         self.x_shape=x.shape
         # Case1: Simple version,  (1,4,1)   -> (3,4,2)
         # Case2: Hard version, (4,1)  ->    (3,4,2)
@@ -343,7 +353,7 @@ class Broadcast(Function):
 # Matrix Multiply
 class MatMul(Function):
     def _forward(self,a,b): # (A,B)X(B,C)->(A,C)
-        xp=cp.get_array_module(a)   # CUDA compatibility
+        xp=get_array_module(a)   # CUDA compatibility
         return xp.dot(a,b)
 
     def _backward(self,grad):
@@ -354,7 +364,7 @@ class MatMul(Function):
 # e^x
 class Exp(Function):
     def _forward(self,x):
-        xp=cp.get_array_module(x)   # CUDA compatibility
+        xp=get_array_module(x)   # CUDA compatibility
         return xp.exp(x)
     
     def _backward(self,grad):
@@ -378,7 +388,7 @@ class SliceGrad(Function):
         self.slice=slice
     
     def _forward(self,grad):
-        xp=cp.get_array_module(grad)   # CUDA compatibility
+        xp=get_array_module(grad)   # CUDA compatibility
         grad_x=xp.zeros(self.x_shape)
         xp.add.at(grad_x,self.slice,grad)
         return grad_x
@@ -389,7 +399,7 @@ class SliceGrad(Function):
 # Log
 class Log(Function):
     def _forward(self,x):
-        xp=cp.get_array_module(x)   # CUDA compatibility
+        xp=get_array_module(x)   # CUDA compatibility
         return xp.log(x)
     
     def _backward(self,grad):
@@ -402,18 +412,18 @@ class Clip(Function):
         self.x_max=x_max 
 
     def _forward(self,x):
-        xp=cp.get_array_module(x)   # CUDA compatibility
+        xp=get_array_module(x)   # CUDA compatibility
         return xp.clip(x,self.x_min,self.x_max)
     
     def _backward(self,grad):
-        xp=cp.get_array_module(grad)   # CUDA compatibility
+        xp=get_array_module(grad)   # CUDA compatibility
         mask=(self.inputs[0].data>=self.x_min)*(self.inputs[0].data<=self.x_max)
         return grad*mask.astype(xp.uint8)
 
 # Relu activation
 class Relu(Function):
     def _forward(self,x):
-        xp=cp.get_array_module(x)   # CUDA compatibility
+        xp=get_array_module(x)   # CUDA compatibility
         return xp.maximum(x,xp.zeros(x.shape))
     
     def _backward(self,grad):

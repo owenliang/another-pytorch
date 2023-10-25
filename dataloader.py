@@ -1,6 +1,5 @@
 import math 
-import numpy as np 
-import cupy as cp
+import numpy as np
 from torch import Variable
 from dataset import SpiralDataset
 
