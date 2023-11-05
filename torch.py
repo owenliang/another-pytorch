@@ -1,5 +1,6 @@
 import numpy as np 
 from graphviz import Digraph
+from contextlib import contextmanager
 try:
     import cupy as cp
 except:
@@ -167,15 +168,18 @@ class Function:
         outputs=self._forward(*[var.data for var in inputs])       # ndarray
         if not isinstance(outputs,tuple):
             outputs=outputs,
-
-        # prepare for backward
+        
+        outputs=[Variable(data) for data in outputs]
         self.gen=max([var.gen for var in inputs])
-        self.inputs=inputs    # Variable
-        self.outputs=[Variable(data) for data in outputs]  # Variable
-        for var in self.outputs:
+        for var in outputs:
             var.func=self
             var.gen=self.gen+1
-        return self.outputs[0] if len(self.outputs)==1 else self.outputs
+
+        # store inputs&outputs for backward
+        if not NO_GRAD:
+            self.inputs=inputs
+            self.outputs=outputs
+        return outputs[0] if len(outputs)==1 else outputs
     
     __call__=forward
 
@@ -467,6 +471,15 @@ def plot_graph(output,path):
             func_q.append(var.func)
     dot.render(outfile=path,cleanup=True)
 
+# Do not store inputs&outputs in functions when do inference
+NO_GRAD=False
+@contextmanager
+def no_grad():
+    global NO_GRAD
+    NO_GRAD=True
+    yield
+    NO_GRAD=False
+
 if __name__=='__main__':
     print('Add测试')
     x=Variable(2)
@@ -681,3 +694,16 @@ if __name__=='__main__':
         print('[cuda relu]',Relu()(x))
     except Exception as e:
         print('没有NVIDIA显卡,',e)
+
+    print('no_grad验证')
+    x1=Variable([1,2,3])
+    x2=Variable([4,5,6])
+    y=x1+x2
+    y.backward()
+    print('y=',y,'x1_grad=',x1.grad,'x2_grad=',x2.grad)
+    with no_grad():
+        y=x1+x2
+        try:
+            y.backward()
+        except Exception as e:
+            print('y=',y,'exception=',e)
