@@ -1,4 +1,5 @@
 import numpy as np 
+from torch import get_array_module
 
 class Optimizer:
     def __init__(self,params_iter):
@@ -29,9 +30,10 @@ class MomentumSGB(Optimizer):
         self.param_state={}
 
     def _update(self,param):
+        xp=get_array_module(param.data)
         param_id=id(param)
         if param_id not in self.param_state:
-            self.param_state[param_id]=np.zeros_like(param.data)
+            self.param_state[param_id]=xp.zeros_like(param.data)
         self.param_state[param_id]=self.param_state[param_id]*self.momentum-self.lr*param.grad.data
         param.data+=self.param_state[param_id]
 

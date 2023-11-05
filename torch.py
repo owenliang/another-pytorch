@@ -10,7 +10,7 @@ else:
 class Variable:
     def __init__(self,data,name=None):
         if get_array_module(data)!=np:
-            self.cuda=True 
+            self.cuda=True
             self.data=cp.asarray(data)  # asarray won't copy ndarray if data is already ndarray
         else:
             self.cuda=False 
@@ -21,10 +21,9 @@ class Variable:
         self.gen=0      # Generation
 
     def backward(self):
-        self.grad=Variable(np.ones_like(self.data)) # if data is in cuda, grad should be in cuda too
-        if self.cuda:
-            self.grad.to_cuda()
-        
+        xp=get_array_module(self.data)
+        self.grad=Variable(xp.ones_like(self.data)) # if data is in cuda, grad should be in cuda too
+                
         func_q=[self.func]
         func_set=set(func_q)
         while len(func_q)!=0:
@@ -108,12 +107,12 @@ class Variable:
 
     def to_cuda(self):
         self.cuda=True 
-        self.data=cp.asarray(self.data)
+        self.data=to_cupy(self.data)
         return self
 
     def to_cpu(self):
         self.cuda=False 
-        self.data=cp.asnumpy(self.data)
+        self.data=to_numpy(self.data)
         return self
 
 # for Layer trainable variable
@@ -127,6 +126,16 @@ def to_variable(data,to_cuda):
     if to_cuda:
         var.to_cuda()
     return var
+
+def to_numpy(data):
+    if not HAS_CUDA:
+        return np.asarray(data)
+    return cp.asnumpy(data)
+
+def to_cupy(data):
+    if not HAS_CUDA:
+        raise Exception('HAS_CUDA is False')
+    return cp.asarray(data)
 
 def get_array_module(arr):
     if not HAS_CUDA:

@@ -23,6 +23,15 @@ class Layer:
             elif isinstance(value,Layer):
                 yield from value.params()
 
+    def named_params(self,prefix=''):
+        for name in self.param_names:
+            value=getattr(self,name)
+            fullname=prefix+'.'+name if prefix else name
+            if isinstance(value,Parameter):
+                yield fullname,value
+            else:
+                yield from value.named_params(fullname)
+
     def sublayers(self):
         for name in self.param_names:
             value=getattr(self,name)
@@ -50,6 +59,17 @@ class Layer:
             l.cuda=False
         return self 
 
+    def save_weights(self,path):
+        param_dict={name:to_numpy(param.data) for name,param in self.named_params()}
+        np.savez_compressed(path,**param_dict)
+    
+    def load_weights(self,path):
+        param_dict=np.load(path+'.npz')
+        for name,param in self.named_params():
+            param.data=param_dict[name]
+            if self.cuda:
+                param.to_cuda()
+
     def _forward(self,*inputs):
         raise NotImplementedError()
 
@@ -75,7 +95,7 @@ class SoftmaxCrossEntropy1D(Layer):
     def _forward(self,x,t):
         probs=Softmax1D()(x)
         log_probs=Log()(Clip(1e-15,1.0)(probs))  # for ln(x), x can not be 0
-        onehots=np.eye(probs.shape[-1])[cp.asnumpy(t.data)]
+        onehots=np.eye(probs.shape[-1])[to_numpy(t.data)]
         return -(log_probs*onehots).sum()/x.shape[0]
 
 if __name__=='__main__':
@@ -105,6 +125,18 @@ if __name__=='__main__':
     print('Layer sublayers()测试')
     for layer in parent_linear.sublayers():
         print('sublayer:',layer)
+
+    print('Layer named_params()测试')
+    model=ParentLayer()
+    for name,param in model.named_params():
+        print('model:',name,param)
+
+    print('Layer save_weights&load_weights测试')
+    model.save_weights('model.pt')
+    loaded_model=ParentLayer()
+    loaded_model.load_weights('model.pt')
+    for name,param in loaded_model.named_params():
+        print('loaded_model:',name,param)
 
     print('Sigmoid()测试')
     sigmoid=Sigmoid()
@@ -217,7 +249,7 @@ if __name__=='__main__':
         plt.scatter(train_x[mask,0],train_x[mask,1],) 
     plt.show()
 
-    # print('MNIST分类测试')
+    print('MNIST分类测试')
     class MNIST_MLP(Layer):
         def __init__(self):
             super().__init__()
