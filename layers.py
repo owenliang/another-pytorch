@@ -5,6 +5,7 @@ class Layer:
     def __init__(self):
         self.param_names=set()
         self.cuda=False
+        self.eval_mode=False # train mode by default
 
     def __call__(self,*inputs):
         inputs=[to_variable(var_or_data,self.cuda) for var_or_data in inputs]
@@ -70,6 +71,16 @@ class Layer:
             if self.cuda:
                 param.to_cuda()
 
+    def train(self):
+        self.eval_mode=False
+        for l in self.sublayers():
+            l.eval_mode=False
+
+    def eval(self):
+        self.eval_mode=True
+        for l in self.sublayers():
+            l.eval_mode=True
+
     def _forward(self,*inputs):
         raise NotImplementedError()
 
@@ -90,6 +101,19 @@ class Softmax1D(Layer):
     def _forward(self,x):
         x_exp=Exp()(x)
         return x_exp/x_exp.sum(axes=-1,keepdims=True)
+
+class Dropout(Layer):
+    def __init__(self,p=0.5):
+        super().__init__()
+        self.p=p 
+    
+    def _forward(self,x):
+        if self.eval_mode:
+            return x
+        else:
+            xp=get_array_module(x.data)
+            mask=xp.random.rand(*x.shape)>self.p
+            return x*mask/(1-self.p)
 
 class SoftmaxCrossEntropy1D(Layer):    
     def _forward(self,x,t):
@@ -152,6 +176,15 @@ if __name__=='__main__':
     x=Variable([[1,1,2],[4,1,5]])
     probs=softmax(x)
     print('softmax:',probs)
+
+    print('Dropout()测试')
+    x=np.ones((3,3))
+    dropout=Dropout(p=0.70)
+    y=dropout(x)
+    print('dropout:',y)
+    dropout.eval()
+    y=dropout(x)
+    print('dropout in eval:',y)
 
     print('SoftmaxCrossEntropy1D()测试')
     crossentropy_loss=SoftmaxCrossEntropy1D()
