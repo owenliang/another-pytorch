@@ -443,6 +443,37 @@ class Relu(Function):
         x_grad=grad*(self.inputs[0].data>0)
         return x_grad
 
+# Max
+class Max(Function):
+    def __init__(self,axis=None,keepdims=False):
+        self.axis=axis
+        self.keepdims=keepdims
+
+    def _forward(self,x):
+        xp=get_array_module(x)
+        return xp.max(x,axis=self.axis,keepdims=self.keepdims)
+    
+    def _backward(self,grad):
+        x=self.inputs[0]
+        xp=get_array_module(x)
+
+        axis=self.axis
+        if axis is None:
+            axis=list(range(len(x.shape)))
+        elif not isinstance(axis,(tuple,list)):
+            axis=(self.axis,)
+        axis=[ax if ax>=0 else len(x.shape)+ax for ax in axis]
+
+        grad_shape=[]
+        for ax,size in enumerate(x.shape):
+            if ax in axis:
+                grad_shape.append(1)
+            else:
+                grad_shape.append(size)
+
+        max_mask=(xp.reshape(self.outputs[0].data,grad_shape)==x.data).astype(xp.uint8)
+        return grad.reshape(grad_shape)*max_mask
+
 # Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
 def plot_graph(output,path):
     dot=Digraph()
@@ -645,6 +676,16 @@ if __name__=='__main__':
     y=Clip(3,5)(x)
     print('y:',y)
     y.backward()
+    print('x_grad:',x.grad)
+
+    print('Max测试')
+    x=Variable([
+        [1,5,4,5],
+        [3,3,4,1]
+    ])
+    y=Max(axis=(1),keepdims=False)(x)
+    y.backward()
+    print('max:',y)
     print('x_grad:',x.grad)
 
     print('线性回归')
