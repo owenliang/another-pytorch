@@ -39,6 +39,11 @@ class Variable:
 
     def zero_grad(self):
         self.grad=None
+    
+    def detach(self): # break from the compute graph
+        self.gen=0
+        self.grad=None 
+        self.func=None
 
     def __repr__(self):
         return str(self.data)
@@ -687,6 +692,18 @@ if __name__=='__main__':
     y.backward()
     print('max:',y)
     print('x_grad:',x.grad)
+
+    print('Detach测试')
+    x=Variable(np.array([1,2,3]))
+    y=x**2
+    y.backward()
+    print('x_grad:',x.grad)
+    y.detach()
+    z=y**2
+    x.zero_grad()
+    z.backward()
+    print('x_grad:',x.grad)
+    print('y_grad:',y.grad)
 
     print('线性回归')
     # 准备样本
