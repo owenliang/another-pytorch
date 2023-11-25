@@ -434,7 +434,7 @@ class Clip(Function):
         return xp.clip(x,self.x_min,self.x_max)
     
     def _backward(self,grad):
-        xp=get_array_module(grad)   # CUDA compatibility
+        xp=get_array_module(grad.data)   # CUDA compatibility
         mask=(self.inputs[0].data>=self.x_min)*(self.inputs[0].data<=self.x_max)
         return grad*mask.astype(xp.uint8)
 
@@ -460,7 +460,7 @@ class Max(Function):
     
     def _backward(self,grad):
         x=self.inputs[0]
-        xp=get_array_module(x)
+        xp=get_array_module(x.data)
 
         axis=self.axis
         if axis is None:
@@ -478,6 +478,25 @@ class Max(Function):
 
         max_mask=(xp.reshape(self.outputs[0].data,grad_shape)==x.data).astype(xp.uint8)
         return grad.reshape(grad_shape)*max_mask
+
+# Concat
+class Concat(Function):
+    def __init__(self,axis):
+        self.axis=axis
+    
+    def _forward(self,*xs):
+        xp=get_array_module(xs[0])
+        return xp.concatenate(xs,axis=self.axis)
+
+    def _backward(self,grad):
+        x_grads=[]
+        start=0
+        for x in self.inputs:
+            index=[slice(None,None)]*len(grad.shape)
+            index[self.axis]=slice(start,start+x.shape[self.axis])
+            start+=x.shape[self.axis]
+            x_grads.append(grad[tuple(index)])
+        return tuple(x_grads)
 
 # Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
 def plot_graph(output,path):
@@ -704,6 +723,17 @@ if __name__=='__main__':
     z.backward()
     print('x_grad:',x.grad)
     print('y_grad:',y.grad)
+
+    print('Concat测试')
+    a=Variable([[1,1],[2,2],[3,3]])
+    b=Variable([[2,2],[3,3],[4,4]])
+    concat=Concat(axis=1)
+    c=concat(a,b)
+    d=c**2
+    d.backward()
+    print('concat:',d)
+    print('a_grad:',a.grad)
+    print('b_grad:',b.grad)
 
     print('线性回归')
     # 准备样本
