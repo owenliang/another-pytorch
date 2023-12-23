@@ -19,6 +19,7 @@ class DataLoader:
             self.batch_index=np.arange(len(self.dataset))
 
     def __iter__(self):
+        self._reset()
         return self 
     
     def __next__(self):
@@ -26,9 +27,9 @@ class DataLoader:
             self._reset()
             raise StopIteration()
         x,t=[],[]
-        for i in range(self.batch_iter*self.batch_size,(self.batch_iter+1)*self.batch_size):
-            x.append(self.dataset[i][0])
-            t.append(self.dataset[i][1])
+        for i in range(self.batch_iter*self.batch_size,min((self.batch_iter+1)*self.batch_size,len(self.dataset))):
+            x.append(self.dataset[self.batch_index[i]][0])
+            t.append(self.dataset[self.batch_index[i]][1])
         self.batch_iter+=1
         
         x=Variable(x)
