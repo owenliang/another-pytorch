@@ -1,6 +1,7 @@
 import numpy as np 
 from graphviz import Digraph
 from contextlib import contextmanager
+from utils import pair
 try:
     import cupy as cp
 except:
@@ -370,13 +371,23 @@ class Broadcast(Function):
 
 # Matrix Multiply
 class MatMul(Function):
-    def _forward(self,a,b): # (A,B)X(B,C)->(A,C)
+    def _forward(self,a,b): # (N,A,B)@(B,C)=(N,A,C)
         xp=get_array_module(a)   # CUDA compatibility
-        return xp.dot(a,b)
+        return xp.matmul(a,b)
 
     def _backward(self,grad):
-        grad_a=MatMul()(grad,self.inputs[1].transpose())    # (A,C)X(B,C).T
-        grad_b=MatMul()(self.inputs[0].transpose(),grad)   # (A,B).TX(A,C)->(B,C)
+        transpose_idx=list(range(0,len(self.inputs[1].shape)))
+        transpose_idx[-1],transpose_idx[-2]=transpose_idx[-2],transpose_idx[-1]
+        grad_a=MatMul()(grad,self.inputs[1].transpose(transpose_idx))    # (N,A,C)@(C,B)=(N,A,B)
+        if len(self.inputs[0].shape)!=len(grad_a.shape):
+            grad_a=Sum(axes=tuple(range(0,len(grad_a.shape)-len(self.inputs[0].shape))),keepdims=False)(grad_a)
+
+        transpose_idx=list(range(0,len(self.inputs[0].shape)))
+        transpose_idx[-1],transpose_idx[-2]=transpose_idx[-2],transpose_idx[-1]
+        grad_b=MatMul()(self.inputs[0].transpose(transpose_idx),grad)    # (N,B,A)@(N,A,C)=(N,B,C) -> Sum() -> (B,C)
+        if len(self.inputs[1].shape)!=len(grad_b.shape):
+            grad_b=Sum(axes=tuple(range(0,len(grad_b.shape)-len(self.inputs[1].shape))),keepdims=False)(grad_b)
+
         return grad_a,grad_b
 
 # e^x
@@ -497,6 +508,59 @@ class Concat(Function):
             start+=x.shape[self.axis]
             x_grads.append(grad[tuple(index)])
         return tuple(x_grads)
+
+# Img2Col(For Conv2D)
+class Img2Col(Function):
+    def __init__(self,kernel_size,stride,padding):
+        self.kernel_size=pair(kernel_size)
+        self.stride=pair(stride)
+        self.padding=pair(padding)
+    
+    def _forward(self,x):
+        xp=get_array_module(x)
+        
+        N,C,H,W=x.shape
+        KH,KW=self.kernel_size
+        SH,SW=self.stride
+        PH,PW=self.padding
+        OH,OW=(H+2*PH-KH)//SH+1,(W+2*PW-KW)//SW+1
+        
+        self.img_shape=x.shape
+        x=xp.pad(x,pad_width=[(0,0),(0,0),(PH,PH),(PW,PW)],mode='constant',constant_values=0.)
+        y=xp.zeros((N,OH*OW,KH*KW*C),dtype=x.dtype)
+        for i in range(OH):
+            for j in range(OW):
+                y[:,i*OW+j,:]=x[:,:,i*SH:i*SH+KH,j*SW:j*SW+KW].reshape(N,-1)
+        return y
+    
+    def _backward(self,grad):
+        return Col2Img(self.img_shape,self.kernel_size,self.stride,self.padding)(grad)
+    
+# Col2Img(For Conv2D Backward)
+class Col2Img(Function):
+    def __init__(self,img_shape,kernel_size,stride,padding):
+        self.img_shape=img_shape
+        self.kernel_size=pair(kernel_size)
+        self.stride=pair(stride)
+        self.padding=pair(padding)
+    
+    def _forward(self,x): 
+        xp=get_array_module(x)
+        
+        N,C,H,W=self.img_shape
+        KH,KW=self.kernel_size
+        SH,SW=self.stride
+        PH,PW=self.padding
+        OH,OW=(H+2*PH-KH)//SH+1,(W+2*PW-KW)//SW+1
+            
+        y=xp.zeros((N,C,H+2*PH,W+2*PW),dtype=x.dtype)
+        for i in range(OH):
+            for j in range(OW):
+                y[:,:,i*SH:i*SH+KH,j*SW:j*SW+KW]+=x[:,i*OW+j,:].reshape(N,C,KH,KW)
+        return y[:,:,PH:PH+H,PW:PW+W]
+    
+    def _backward(self,grad):
+        return Img2Col(self.kernel_size,self.stride,self.padding)(grad)
 
 # Model Visualization By Graphviz https://zhuanlan.zhihu.com/p/21993254
 def plot_graph(output,path):
@@ -675,8 +739,8 @@ if __name__=='__main__':
     print('x_grad:',x.grad,'y_grad:',y.grad) 
 
     print('MatMul测试')
-    x=Variable(np.random.rand(3,2))
-    y=Variable(np.random.rand(2,5))
+    x=Variable(np.random.rand(10,1,2,3))
+    y=Variable(np.random.rand(3,5))
     z=x@y
     print('z:',z.shape)
     z.backward()
@@ -795,3 +859,15 @@ if __name__=='__main__':
             y.backward()
         except Exception as e:
             print('y=',y,'exception=',e)
+            
+    print('Img2Col测试')
+    N,C,H,W=1,3,12,12
+    kernel_size=4
+    stride=1
+    padding=1
+    img2col=Img2Col(kernel_size=kernel_size,stride=stride,padding=padding)
+
+    x=Variable(np.arange(N*C*H*W).reshape(N,C,H,W)).to_cuda()
+    y=img2col(x)
+    y.backward()
+    print('x:',x.shape,'y:',y.shape,'x_grad:',x.grad.shape)

@@ -31,3 +31,8 @@ def get_file(url,file_name=None):
         raise
     print(" Done")
     return file_path
+
+def pair(param):
+    if isinstance(param,tuple) or isinstance(param,list):
+        return param
+    return (param,param)

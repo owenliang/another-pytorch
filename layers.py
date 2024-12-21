@@ -122,6 +122,29 @@ class SoftmaxCrossEntropy1D(Layer):
         onehots=np.eye(probs.shape[-1])[to_numpy(t.data)]
         return -(log_probs*onehots).sum()/x.shape[0]
 
+class Conv2d(Layer):
+    def __init__(self,in_channels,out_channels,kernel_size,stride=1,padding=0):
+        super().__init__()
+        self.kernel_size=pair(kernel_size)
+        self.stride=pair(stride)
+        self.padding=pair(padding)
+        self.in_channels=in_channels
+        
+        KH,KW=self.kernel_size
+        self.linear=Linear(in_channels*KH*KW,out_channels)
+    
+    def _forward(self,x):
+        N,C,H,W=x.shape
+        KH,KW=self.kernel_size
+        SH,SW=self.stride
+        PH,PW=self.padding
+        OH,OW=(H+2*PH-KH)//SH+1,(W+2*PW-KW)//SW+1
+        
+        x=Img2Col(self.kernel_size,self.stride,self.padding)(x) # (N,OH*OW,C*KH*KW))
+        y=self.linear(x) # (N,OH*OW,out_channels)
+        y=y.reshape((N,OH,OW,-1)).transpose((0,3,1,2))
+        return y
+
 if __name__=='__main__':
     print('Linear测试')
     linear=Linear(5,3)
@@ -347,6 +370,45 @@ if __name__=='__main__':
                 t=t.to_cuda() 
                 output=model(x)
 
+                loss=loss_fn(output,t)
+                model.zero_grads()
+                loss.backward()
+                optimizer.step()
+                print('loss:',loss,'acc:',accuracy(output,t))
+    except Exception as e:
+        print('没有NVIDIA显卡,',e)
+
+    print('[CUDA]MNIST卷积测试')
+    class MNIST_Conv2d(Layer):
+        def __init__(self):
+            super().__init__()
+            self.conv=Conv2d(in_channels=1,out_channels=100,kernel_size=4,stride=4,padding=0)
+            self.linear=Linear(in_size=100*7*7,out_size=10)
+        
+        def _forward(self,x):
+            y=self.conv(x)
+            y=Relu()(y)
+            y=y.reshape((y.shape[0],-1))
+            y=self.linear(y)
+            return y
+    try:
+        from dataset import MNISTDataset
+        train_dataset=MNISTDataset(train=True,transformer=img_transformer)
+        test_dataset=MNISTDataset(train=False,transformer=img_transformer)
+        
+        epoch=5
+        batch_size=100
+        model=MNIST_Conv2d().to_cuda()
+        optimizer=MomentumSGB(model.params(),lr=0.001)
+        loss_fn=SoftmaxCrossEntropy1D().to_cuda()
+        
+        train_dataloader=DataLoader(train_dataset,batch_size)
+        test_dataloader=DataLoader(test_dataset,batch_size)
+        for e in range(epoch):
+            for x,t in train_dataloader:
+                x=x.to_cuda()
+                t=t.to_cuda() 
+                output=model(x.reshape((-1,1,28,28)))
                 loss=loss_fn(output,t)
                 model.zero_grads()
                 loss.backward()
