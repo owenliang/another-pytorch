@@ -348,7 +348,7 @@ if __name__=='__main__':
             model.zero_grads()
             loss.backward()
             optimizer.step()
-            print('loss:',loss,'acc:',accuracy(output,t))
+        print('loss:',loss,'acc:',accuracy(output,t))
 
     print('[CUDA]MNIST分类测试')
     try:
@@ -374,7 +374,7 @@ if __name__=='__main__':
                 model.zero_grads()
                 loss.backward()
                 optimizer.step()
-                print('loss:',loss,'acc:',accuracy(output,t))
+            print('loss:',loss,'acc:',accuracy(output,t))
     except Exception as e:
         print('没有NVIDIA显卡,',e)
 
@@ -399,7 +399,7 @@ if __name__=='__main__':
         epoch=5
         batch_size=100
         model=MNIST_Conv2d().to_cuda()
-        optimizer=MomentumSGB(model.params(),lr=0.001)
+        optimizer=SGD(model.params(),lr=0.006)
         loss_fn=SoftmaxCrossEntropy1D().to_cuda()
         
         train_dataloader=DataLoader(train_dataset,batch_size)
@@ -413,6 +413,6 @@ if __name__=='__main__':
                 model.zero_grads()
                 loss.backward()
                 optimizer.step()
-                print('loss:',loss,'acc:',accuracy(output,t))
+            print('loss:',loss,'acc:',accuracy(output,t))
     except Exception as e:
         print('没有NVIDIA显卡,',e)
