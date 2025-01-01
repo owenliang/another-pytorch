@@ -82,6 +82,18 @@ class Layer:
     def _forward(self,*inputs):
         raise NotImplementedError()
 
+class Sequential(Layer):
+    def __init__(self,*layers):
+        super().__init__()
+        self.layers=list(layers)
+        for i,layer in enumerate(self.layers):
+            setattr(self,f'{i}',layer)
+    
+    def _forward(self,x):
+        for layer in self.layers:
+            x=layer(x)
+        return x
+
 class Linear(Layer):
     def __init__(self,in_size,out_size):
         super().__init__()
@@ -164,6 +176,29 @@ class MaxPool2d(Layer):
         return y
 
 if __name__=='__main__':
+    print('Sequential测试')
+    class TestSequential(Layer):
+        def __init__(self):
+            super().__init__()
+            self.seq1=Sequential(
+                Linear(5,3),
+                Linear(3,2),
+            )
+            self.seq2=Sequential(
+                Linear(2,1),
+                Sigmoid()
+            )
+        
+        def _forward(self,x):
+            return self.seq2(self.seq1(x))
+    
+    model=TestSequential()
+    print('TestSequential named_params:',list(model.named_params()))
+    save(model.state_dict(),'test.pt')
+    loaded_model=TestSequential()
+    loaded_model.load_state_dict(load('test.pt'))
+    print('TestSequential loaded named_params:',list(loaded_model.named_params()))    
+    
     print('Linear测试')
     linear=Linear(5,3)
     x=np.random.rand(100,5)
