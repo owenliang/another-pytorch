@@ -99,7 +99,30 @@ class MNISTDataset(Dataset):
     def _getitem(self,index):
         return self.data[index],self.label[index]
 
-if __name__=='__main__':
+class SinDataset(Dataset):
+    def __init__(self,transformer=None,target_transformer=None):
+        super().__init__(transformer,target_transformer)
+        self.x=np.linspace(0,4*2*np.pi,100) # 5 cycles, 2pi per cycle, 10000 sample points 
+        self.y=np.sin(self.x)
+        
+        steps=50
+        self.steps=steps
+        self.samples=[]
+        for i in range(0,len(self.x)-steps,steps):
+            y=self.y[i:i+steps]
+            x=y[:-1]
+            t=y[1:]
+            self.samples.append((x,t))
+    
+    def _len(self):
+        return len(self.samples)
+
+    def _getitem(self,index):
+        return self.samples[index]
+
+if __name__=='__main__':    
+    import matplotlib.pyplot as plt
+    
     def transformer(x):
         print('transformer x:',x)
         return x 
@@ -112,8 +135,12 @@ if __name__=='__main__':
         print('spiral_dataset[{}] x:{} t:{}'.format(i,spiral_dataset[i][0],spiral_dataset[i][1]))
 
     print('MNISTDataset')
-    import matplotlib.pyplot as plt
     mnist_dataset=MNISTDataset()
     x,t=mnist_dataset[0]
     plt.imshow(x.reshape(28,28))
+    plt.show()
+    
+    print('SinDataset')
+    sin_dataset=SinDataset()
+    plt.plot(sin_dataset.x,sin_dataset.y)
     plt.show()

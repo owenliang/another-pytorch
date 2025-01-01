@@ -175,6 +175,45 @@ class MaxPool2d(Layer):
         y=y.reshape((N,OH,OW,C)).transpose((0,3,1,2))
         return y
 
+class Tanh(Layer):
+    def _forward(self,x):
+        return (Exp()(x)-Exp()(-x))/(Exp()(x)+Exp()(-x))
+
+class LSTM(Layer):
+    def __init__(self,input_size,hidden_size):
+        super().__init__()  
+        self.hidden_size=hidden_size
+        
+        self.x2i=Linear(input_size,hidden_size)
+        self.x2f=Linear(input_size,hidden_size)
+        self.x2g=Linear(input_size,hidden_size)
+        self.x2o=Linear(input_size,hidden_size)
+        
+        self.h2i=Linear(hidden_size,hidden_size)
+        self.h2f=Linear(hidden_size,hidden_size)
+        self.h2g=Linear(hidden_size,hidden_size)
+        self.h2o=Linear(hidden_size,hidden_size)
+    
+    def _forward(self,x,h=None,c=None):
+        xp=get_array_module(x.data)
+        if h is None:
+            h=Variable(xp.zeros((x.shape[0],self.hidden_size)))
+        if c is None:
+            c=Variable(xp.zeros((x.shape[0],self.hidden_size)))
+        
+        output=[] # (batch,1,hidden_size)
+        steps=x.shape[1]
+        for s in range(steps):
+            x_s=x[:,s,...] # (batch,input_size)
+            i=Sigmoid()(self.x2i(x_s)+self.h2i(h))
+            f=Sigmoid()(self.x2f(x_s)+self.h2f(h))
+            g=Tanh()(self.x2g(x_s)+self.h2g(h))
+            o=Sigmoid()(self.x2o(x_s)+self.h2o(h))
+            c=f*c+i*g # (batch,hidden_size)
+            h=o*Tanh()(c) # (batch,hidden_size)
+            output.append(h.reshape((h.shape[0],1,h.shape[1])))
+        return Concat(axis=1)(*output),(h,c)
+        
 if __name__=='__main__':
     print('Sequential测试')
     class TestSequential(Layer):
@@ -270,6 +309,27 @@ if __name__=='__main__':
     t=Variable([2,0])
     loss=crossentropy_loss(x,t)
     print('loss:',loss)
+
+    # Tanh测试
+    tanh=Tanh()
+    x=Variable(5)
+    y=tanh(x)
+    print('Tanh(5)=',y)
+    y.backward()
+    print('Tanh(5) x_grad:',x.grad)
+    
+    # LSTM测试
+    lstm=LSTM(input_size=5,hidden_size=10)
+    for param in lstm.params():
+        param.data.fill(1)
+    x=Variable(np.arange(0,2*3*5).reshape((2,3,5))/100) # batch:2, steps:3, input_size:5
+    y,(h,c)=lstm(x)
+    y=y.sum()
+    y.backward()
+    plot_graph(y,'lstm.png')
+    print('lstm x_shape',x.shape)
+    print('lstm y:',y)
+    print('lstm x_grad:',x.grad)
 
     print('MLP回归测试')
     class MLPRegression(Layer):
@@ -512,3 +572,43 @@ if __name__=='__main__':
             print('loss:',loss,'acc:',accuracy(output,t))
     except Exception as e:
         print('没有NVIDIA显卡,',e)
+        
+    print('Sin数据集 LSTM时序预测')
+    class SinLSTM(Layer):
+        def __init__(self):
+            super().__init__()
+            self.lstm=LSTM(input_size=1,hidden_size=10)
+            self.fc=Linear(10,1)
+        
+        def _forward(self,x): 
+            y,(h,c)=self.lstm(x) 
+            return self.fc(y) 
+    
+    from dataset import SinDataset
+    sin_dataset=SinDataset()
+    sin_dataloader=DataLoader(sin_dataset,batch_size=20,shuffle=True)
+    sin_lstm=SinLSTM().to_cuda()
+    optimizer=MomentumSGB(sin_lstm.params(),lr=1e-3)
+    sin_lstm.train()
+    for epoch in range(200):
+        for x,t in sin_dataloader:
+            x=x.to_cuda()
+            t=t.to_cuda()
+            x=x.reshape((x.shape[0],-1,1))
+            t=t.reshape((t.shape[0],-1,1))
+            output=sin_lstm(x)
+            loss=((output-t)**2).sum()/x.shape[0]
+            sin_lstm.zero_grads()
+            loss.backward()
+            optimizer.step()
+        print('epoch:',epoch,'loss:',loss)
+    sin_lstm.eval()
+    points=sin_dataset.y
+    x=Variable(points).to_cuda()
+    x=x.reshape((1,-1,1))
+    output=sin_lstm(x)
+    pred=output[0,:,0].data
+    plt.plot(np.arange(len(points)-1),points[1:],label='[sin]')
+    plt.plot(np.arange(len(pred)),to_numpy(pred),label='[pred]')
+    plt.legend()
+    plt.show()
