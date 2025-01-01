@@ -60,14 +60,12 @@ class Layer:
             l.cuda=False
         return self 
 
-    def save_weights(self,path):
-        param_dict={name:to_numpy(param.data) for name,param in self.named_params()}
-        np.savez_compressed(path,**param_dict)
+    def state_dict(self):
+        return {name:to_numpy(param.data) for name,param in self.named_params()}
     
-    def load_weights(self,path):
-        param_dict=np.load(path+'.npz')
+    def load_state_dict(self,state_dict):
         for name,param in self.named_params():
-            param.data=param_dict[name]
+            param.data=state_dict[name]
             if self.cuda:
                 param.to_cuda()
 
@@ -196,12 +194,14 @@ if __name__=='__main__':
     print('Layer named_params()测试')
     model=ParentLayer()
     for name,param in model.named_params():
-        print('model:',name,param)
+        print('model:',name,param)  
 
-    print('Layer save_weights&load_weights测试')
-    model.save_weights('model.pt')
+    print('Layer state_dict&load_state_dict测试')
+    state_dict=model.state_dict()
+    save({'model':state_dict},'model.pt')
     loaded_model=ParentLayer()
-    loaded_model.load_weights('model.pt')
+    loaded_state_dict=load('model.pt')['model']
+    loaded_model.load_state_dict(loaded_state_dict)
     for name,param in loaded_model.named_params():
         print('loaded_model:',name,param)
 

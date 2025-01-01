@@ -2,6 +2,7 @@ import numpy as np
 from graphviz import Digraph
 from contextlib import contextmanager
 from utils import pair
+import pickle
 try:
     import cupy as cp
 except:
@@ -148,6 +149,14 @@ def get_array_module(arr):
     if not HAS_CUDA:
         return np
     return cp.get_array_module(arr)
+
+def save(obj,path):
+    with open(path,'wb') as fp:
+        pickle.dump(obj,fp)
+
+def load(path):
+    with open(path,'rb') as fp:
+        return pickle.load(fp)
 
 class Function:
     def __init__(self):
@@ -600,6 +609,12 @@ def no_grad():
     NO_GRAD=False
 
 if __name__=='__main__':
+    print('save&load测试')
+    state={'a':1, 'b':{'c':1,'d':2}}
+    save(state,'test.pt')
+    loaded_state=load('test.pt')
+    print('loaded_state:',loaded_state)
+    
     print('Add测试')
     x=Variable(2)
     y=Variable(3)
