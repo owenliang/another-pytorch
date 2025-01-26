@@ -121,7 +121,7 @@ avg_loss: 0.03175617374426474 avg_acc: 0.9928499999999997
 
 ## 开发方法
 
-如下命令进入开发模式，即可开始调试代码.
+执行命令进入开发模式，即可开始调试代码，即时生效：
 
 ```
 pip install -e .[cuda12]
@@ -131,17 +131,17 @@ cuda版本支持替换：cuda11或cuda12.
 
 ## 对外安装
 
-在需要的项目下，执行安装命令
+在需要的项目下，下载该项目并安装：
 
 仅CPU
 
 ```
-python setup.py install 
+pip install .
 ```
 
 支持CUDA
 
 ```
-python setup.py install --extra-require=cuda12
+pip install .[cuda12]
 ```
 cuda版本支持替换：cuda11或cuda12.
