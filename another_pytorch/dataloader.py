@@ -1,7 +1,7 @@
 import math
 import numpy as np
-from torch import Variable
-from dataset import SpiralDataset
+from another_pytorch.torch import Variable
+from another_pytorch.dataset import SpiralDataset
 
 class Sampler:
     def __iter__(self):

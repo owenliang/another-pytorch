@@ -1,4 +1,4 @@
-from torch import *
+from another_pytorch.torch import *
 import numpy as np 
 
 class Layer:
@@ -344,7 +344,7 @@ if __name__=='__main__':
             y=self.sigmoid1(y)
             return self.linear2(y)
     model=MLPRegression()
-    from optimizers import SGD 
+    from another_pytorch.optimizers import SGD 
     optimizer=SGD(model.params(),lr=0.1)
     train_x=np.random.randint(1,20,(1000,1))   # x: (1000,1)
     train_y=train_x*5+10
@@ -378,11 +378,11 @@ if __name__=='__main__':
     epoch=500
 
     model=MLPClassification() 
-    from optimizers import MomentumSGB 
+    from another_pytorch.optimizers import MomentumSGB 
     optimizer=MomentumSGB(model.params(),lr=0.1)
 
-    from dataset import get_spiral,SpiralDataset
-    from dataloader import DataLoader
+    from another_pytorch.dataset import get_spiral,SpiralDataset
+    from another_pytorch.dataloader import DataLoader
     import math 
     train_x,train_y=get_spiral(train=True)  
     dataset=SpiralDataset()
@@ -444,7 +444,7 @@ if __name__=='__main__':
         acc=(pred_t==t.data).sum()/t.shape[0]
         return Variable(acc)
 
-    from dataset import MNISTDataset
+    from another_pytorch.dataset import MNISTDataset
     train_dataset=MNISTDataset(train=True,transformer=img_transformer)
     test_dataset=MNISTDataset(train=False,transformer=img_transformer)
     
@@ -467,7 +467,7 @@ if __name__=='__main__':
 
     print('[CUDA]MNIST分类测试')
     try:
-        from dataset import MNISTDataset
+        from another_pytorch.dataset import MNISTDataset
         train_dataset=MNISTDataset(train=True,transformer=img_transformer)
         test_dataset=MNISTDataset(train=False,transformer=img_transformer)
         
@@ -507,7 +507,7 @@ if __name__=='__main__':
             y=self.linear(y)
             return y
     try:
-        from dataset import MNISTDataset
+        from another_pytorch.dataset import MNISTDataset
         train_dataset=MNISTDataset(train=True,transformer=img_transformer)
         test_dataset=MNISTDataset(train=False,transformer=img_transformer)
         
@@ -548,7 +548,7 @@ if __name__=='__main__':
             y=self.linear(y)
             return y
     try:
-        from dataset import MNISTDataset
+        from another_pytorch.dataset import MNISTDataset
         train_dataset=MNISTDataset(train=True,transformer=img_transformer)
         test_dataset=MNISTDataset(train=False,transformer=img_transformer)
         
@@ -584,7 +584,7 @@ if __name__=='__main__':
             y,(h,c)=self.lstm(x) 
             return self.fc(y) 
     
-    from dataset import SinDataset
+    from another_pytorch.dataset import SinDataset
     sin_dataset=SinDataset()
     sin_dataloader=DataLoader(sin_dataset,batch_size=20,shuffle=True)
     sin_lstm=SinLSTM().to_cuda()

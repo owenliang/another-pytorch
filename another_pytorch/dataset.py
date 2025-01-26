@@ -1,6 +1,6 @@
 import numpy as np 
-from layers import *
-from utils import get_file
+from another_pytorch.layers import *
+from another_pytorch.utils import get_file
 import gzip
 
 class Dataset:

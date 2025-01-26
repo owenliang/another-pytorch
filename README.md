@@ -13,7 +13,9 @@
 * 优化器
 * 支持CUDA
 
-## 使用示例(demo.py)
+## 使用示例
+
+参见demo.py
 
 ```python
 from layers import *
@@ -116,3 +118,30 @@ avg_loss: 0.0362750277808008 avg_acc: 0.9914999999999999
 avg_loss: 0.0339194962084964 avg_acc: 0.9921999999999999
 avg_loss: 0.03175617374426474 avg_acc: 0.9928499999999997
 ```
+
+## 开发方法
+
+如下命令进入开发模式，即可开始调试代码.
+
+```
+pip install -e .[cuda12]
+```
+
+cuda版本支持替换：cuda11或cuda12.
+
+## 对外安装
+
+在需要的项目下，执行安装命令
+
+仅CPU
+
+```
+python setup.py install 
+```
+
+支持CUDA
+
+```
+python setup.py install --extra-require=cuda12
+```
+cuda版本支持替换：cuda11或cuda12.

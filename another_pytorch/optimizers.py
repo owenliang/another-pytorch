@@ -1,5 +1,5 @@
 import numpy as np 
-from torch import get_array_module
+from another_pytorch.torch import get_array_module
 
 class Optimizer:
     def __init__(self,params_iter):
@@ -38,7 +38,7 @@ class MomentumSGB(Optimizer):
         param.data+=self.param_state[param_id]
 
 if __name__=='__main__':
-    from layers import *
+    from another_pytorch.layers import *
     class MLP(Layer):
         def __init__(self):
             super().__init__()

@@ -1,7 +1,7 @@
 import numpy as np 
 from graphviz import Digraph
 from contextlib import contextmanager
-from utils import pair
+from another_pytorch.utils import pair
 import pickle
 try:
     import cupy as cp

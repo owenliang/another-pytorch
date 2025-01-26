@@ -1,7 +1,7 @@
-from layers import *
-from optimizers import * 
-from dataloader import *
-from dataset import * 
+from another_pytorch.layers import *
+from another_pytorch.optimizers import * 
+from another_pytorch.dataloader import *
+from another_pytorch.dataset import * 
 
 print('[CUDA]MNIST分类模型')
 
