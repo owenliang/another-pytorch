@@ -816,7 +816,6 @@ if __name__=='__main__':
 
     print('线性回归')
     # 准备样本
-    np.random.seed(0)
     train_x=np.random.rand(100,1)   #   100个样本x
     train_y=2*train_x+5+np.random.rand(100,1)   # 100个样本y(随机偏离正确y)
     # 定义线性模型
