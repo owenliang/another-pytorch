@@ -378,8 +378,8 @@ if __name__=='__main__':
     epoch=500
 
     model=MLPClassification() 
-    from another_pytorch.optimizers import MomentumSGB 
-    optimizer=MomentumSGB(model.params(),lr=0.1)
+    from another_pytorch.optimizers import MomentumSGD
+    optimizer=MomentumSGD(model.params(),lr=0.1)
 
     from another_pytorch.dataset import get_spiral,SpiralDataset
     from another_pytorch.dataloader import DataLoader
@@ -451,7 +451,7 @@ if __name__=='__main__':
     epoch=5
     batch_size=100
     model=MNIST_MLP()
-    optimizer=MomentumSGB(model.params(),lr=0.1)
+    optimizer=MomentumSGD(model.params(),lr=0.1)
     loss_fn=SoftmaxCrossEntropy1D()
     
     train_dataloader=DataLoader(train_dataset,batch_size)
@@ -474,7 +474,7 @@ if __name__=='__main__':
         epoch=5
         batch_size=100
         model=MNIST_MLP().to_cuda()
-        optimizer=MomentumSGB(model.params(),lr=0.1)
+        optimizer=MomentumSGD(model.params(),lr=0.1)
         loss_fn=SoftmaxCrossEntropy1D().to_cuda()
         
         train_dataloader=DataLoader(train_dataset,batch_size)
@@ -588,7 +588,7 @@ if __name__=='__main__':
     sin_dataset=SinDataset()
     sin_dataloader=DataLoader(sin_dataset,batch_size=20,shuffle=True)
     sin_lstm=SinLSTM().to_cuda()
-    optimizer=MomentumSGB(sin_lstm.params(),lr=1e-3)
+    optimizer=MomentumSGD(sin_lstm.params(),lr=1e-3)
     sin_lstm.train()
     for epoch in range(200):
         for x,t in sin_dataloader:

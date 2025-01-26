@@ -46,7 +46,7 @@ test_dataloader=DataLoader(test_dataset,batch_size)
 model=MNIST_MLP().to_cuda()
 
 # optimizer
-optimizer=MomentumSGB(model.params(),lr=0.1)
+optimizer=MomentumSGD(model.params(),lr=0.1)
 
 # loss function
 loss_fn=SoftmaxCrossEntropy1D().to_cuda()

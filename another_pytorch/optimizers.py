@@ -22,7 +22,7 @@ class SGD(Optimizer):
         param.data-=self.lr*param.grad.data
 
 # 加速度SGD
-class MomentumSGB(Optimizer):
+class MomentumSGD(Optimizer):
     def __init__(self,params_iter,lr=0.01,momentum=0.9):
         super().__init__(params_iter)
         self.lr=lr
@@ -51,7 +51,7 @@ if __name__=='__main__':
             y=self.sigmoid1(y)
             return self.linear2(y)
     model=MLP()
-    optimizer=MomentumSGB(model.params(),lr=0.1,momentum=0.9)
+    optimizer=MomentumSGD(model.params(),lr=0.1,momentum=0.9)
     train_x=np.random.randint(1,20,(1000,1))   # x: (1000,1)
     train_y=train_x*5+10
     for iter in range(10000):

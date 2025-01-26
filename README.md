@@ -7,11 +7,11 @@
 ## 已经实现的特性
 
 * 动态计算图
-* 网络层
-* 数据集
-* 数据加载器
-* 优化器
-* 支持CUDA
+* 网络层（Linear,Conv2d,MaxPool2d,LSTM,Sequential）
+* 数据集（Dataset）
+* 数据加载器（SequentialSampler,RandomSampler,DataLoader）
+* 优化器（SGD,MomentumSGD）
+* 支持CPU与CUDA
 
 ## 使用示例
 
@@ -66,7 +66,7 @@ test_dataloader=DataLoader(test_dataset,batch_size)
 model=MNIST_MLP().to_cuda()
 
 # optimizer
-optimizer=MomentumSGB(model.params(),lr=0.1)
+optimizer=MomentumSGD(model.params(),lr=0.1)
 
 # loss function
 loss_fn=SoftmaxCrossEntropy1D().to_cuda()
