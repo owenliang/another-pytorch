@@ -2,7 +2,7 @@
 
 实现一个类似pytorch的深度学习框架
 
-![graphviz](model.png "graphviz")
+![graphviz](docs/model.png "graphviz")
 
 ## 已经实现的特性
 
