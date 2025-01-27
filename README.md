@@ -9,7 +9,7 @@
 * 动态计算图
 * 网络层（Linear,Conv2d,MaxPool2d,LSTM,Sequential）
 * 数据集（Dataset）
-* 数据加载器（SequentialSampler,RandomSampler,DataLoader）
+* 数据加载器（SequentialSampler,RandomSampler,DataLoader）: 支持状态存储
 * 优化器（SGD,MomentumSGD）
 * 支持CPU与CUDA
 
